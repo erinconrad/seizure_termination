@@ -10,12 +10,12 @@
 %% Parameters
 % Goertzel parameters
 f_target = 50;
-time_window = 0.2; % 100 ms time windows
-time_stride = 0.2; % 100 ms stride length
+time_window = 0.3; % 100 ms time windows
+time_stride = 0.1; % 100 ms stride length
 
 % rel power in 50 Hz must be above this in both stim channels to say stim
 % has begun
-stim_start_thresh = 20; 
+stim_start_thresh = 10; 
 
 % rel power in 50 Hz must drop below this in both stim channels to say stim
 % has stopped
@@ -23,13 +23,11 @@ stim_end_thresh = 5;
 
 % LL must pass above this in either surround channel to say ADs have
 % started
-ad_start_thresh = 2e3; 
+ad_start_thresh = 3e3; 
 
 % LL must go below this in corresponding surround channel to say Ads have
 % ended
-ad_end_thresh = 0.5e3;
-
-stop_looking_time = 5; % if ADs haven't started by now, stop looking
+ad_end_thresh = 2e3;
 
 % Consider measuring pre-stim baseline LL and doing relative threshold!!!
 
@@ -81,13 +79,6 @@ coeff = 2 * cos(omega);
 s_prev = 0;
 s_prev2 = 0;
 
-% Filters
-[b_notch,a_notch] = butter(2, [58 62]/(fs/2), 'stop');
-z_notch = zeros(max(length(a_notch),length(b_notch))-1,1); % filter state
-
-[b_pass,a_pass] = butter(2, [1 70]/(fs/2), 'bandpass');
-z_pass = zeros(max(length(a_pass),length(b_pass))-1,1); % filter state
-
 % Initialize conditions
 stim_begun = zeros(2,1);
 stim_ended = zeros(2,1);
@@ -96,9 +87,6 @@ ad_begun = 0;
 ad_ended = 0;
 ad_ch = nan;
 
-% Initialize time stamps
-time_stamps = cell(0,3);
-
 % Loop over data stream
 for i = window_length+1:stride:length(data_stream)
 
@@ -106,8 +94,11 @@ for i = window_length+1:stride:length(data_stream)
     data = data_stream(i-window_length:i,:);
 
     % notch and bandpass
-    [data,z_notch] = filter(b_notch, a_notch, data,z_notch);
-    [data,z_pass] = filter(b_pass, a_pass, data,z_pass);
+    [b, a] = butter(2, [58 62]/(fs/2), 'stop');
+    data = filter(b, a, data);
+    
+    [b, a] = butter(2, [1 70]/(fs/2), 'bandpass');
+    data = filter(b, a, data);
 
     % if stim hasn't begun on both channel
     if any(stim_begun==0) 
@@ -116,7 +107,6 @@ for i = window_length+1:stride:length(data_stream)
 
         % Loop over stim channels
         for j = 1:2
-            if stim_begun(j) ~=0, continue; end % skip if stim already started on that ch
             ch = strcmp(chLabels,stim_chs{j});
             if sum(ch) == 0,error('cannot find stim ch'); end
 
@@ -141,7 +131,6 @@ for i = window_length+1:stride:length(data_stream)
 
             if rel_50 > stim_start_thresh
                 stim_begun(j) = i; % say stim has begun on that channel
-                time_stamps = [time_stamps;{i},stim_chs(j),{'Stim start'}];
             end
         end
 
@@ -152,7 +141,6 @@ for i = window_length+1:stride:length(data_stream)
 
         % Loop over stim channels
         for j = 1:2
-            if stim_ended(j) ~=0, continue; end % skip if stim already ended on that ch
             ch = strcmp(chLabels,stim_chs{j});
             if sum(ch) == 0,error('cannot find stim ch'); end
 
@@ -177,7 +165,6 @@ for i = window_length+1:stride:length(data_stream)
 
             if rel_50 < stim_end_thresh
                 stim_ended(j) = i; % say stim has ended on that channel
-                time_stamps = [time_stamps;{i},stim_chs(j),{'Stim end'}];
             end
         end
 
@@ -186,51 +173,17 @@ for i = window_length+1:stride:length(data_stream)
     elseif all(stim_begun~=0) && all(stim_ended~=0) && ad_begun == 0
 
         % Loop over surround channels
-        if i/fs - max(stim_ended)/fs < stop_looking_time
-            for j = 1:2
-                ch = strcmp(chLabels,surround_chs{j});
-                if sum(ch) == 0,continue; end
-                data_ch = data(:,ch);
-                ll = sum(abs(diff(data_ch)));
-    
-                if ll > ad_start_thresh
-                    ad_begun = i; % AD started
-                    ad_ch = surround_chs{j};
-                    time_stamps = [time_stamps;{i},ad_ch,{'ADs start'}];
-    
-                end
-            end
-        end
-
-        % Also loop over stim to see if stim starts before ADs
         for j = 1:2
-            ch = strcmp(chLabels,stim_chs{j});
-            if sum(ch) == 0,error('cannot find stim ch'); end
-
-            % restrict to channel
+            ch = strcmp(chLabels,surround_chs{j});
+            if sum(ch) == 0,continue; end
             data_ch = data(:,ch);
+            ll = sum(abs(diff(data_ch)));
 
-            % Apply Goertzel algorithm
-            s_prev = 0;
-            s_prev2 = 0;
-            for n = 1:window_length
-                s = data(n,ch) + coeff * s_prev - s_prev2;
-                s_prev2 = s_prev;
-                s_prev = s;
-            end
+            if ll > ad_start_thresh
+                ad_begun = i; % AD started
+                ad_ch = surround_chs{j};
 
-            % Calculate power at 50 Hz
-            power_50Hz = s_prev2^2 + s_prev^2 - coeff * s_prev * s_prev2;
 
-            % Calculate total power in the window
-            total_power = sum(data_ch .^ 2);
-            rel_50 = power_50Hz/total_power;
-
-            if rel_50 > stim_start_thresh
-                stim_begun(j) = i; % say stim has begun on that channel
- 
-                stim_ended(j) = 0; % reset stim stopped to 0
-                time_stamps = [time_stamps;{i},stim_chs(j),{'Stim start'}];
             end
         end
 
@@ -247,56 +200,17 @@ for i = window_length+1:stride:length(data_stream)
 
         if ll < ad_end_thresh
             ad_ended = i; % ended ADs
-            time_stamps = [time_stamps;{i},ad_ch,{'ADs end'}];
+
             % Plot stuff
-            %plot_stims(chLabels,chs_of_interest,data_times,data_stream,...
-  %  stim_begun,stim_ended,ad_begun,ad_ended,ad_ch,fs)
-            %error('look')
+            plot_stims(chLabels,chs_of_interest,data_times,data_stream,...
+    stim_begun,stim_ended,ad_begun,ad_ended,ad_ch,fs)
+            error('look')
 
-        end
-
-        % Also loop over stim to see if stim starts before ADs end
-        for j = 1:2
-            ch = strcmp(chLabels,stim_chs{j});
-            if sum(ch) == 0,error('cannot find stim ch'); end
-
-            % restrict to channel
-            data_ch = data(:,ch);
-
-            % Apply Goertzel algorithm
-            s_prev = 0;
-            s_prev2 = 0;
-            for n = 1:window_length
-                s = data(n,ch) + coeff * s_prev - s_prev2;
-                s_prev2 = s_prev;
-                s_prev = s;
-            end
-
-            % Calculate power at 50 Hz
-            power_50Hz = s_prev2^2 + s_prev^2 - coeff * s_prev * s_prev2;
-
-            % Calculate total power in the window
-            total_power = sum(data_ch .^ 2);
-            rel_50 = power_50Hz/total_power;
-
-            if rel_50 > stim_start_thresh
-                stim_begun(j) = i; % say stim has begun on that channel
- 
-                stim_ended(j) = 0; % reset stim stopped to 0
-                ad_begun = 0; % also reset ad
-                time_stamps = [time_stamps;{i},stim_chs(j),{'Stim start'}];
-            end
         end
 
     elseif all(stim_begun~=0) && all(stim_ended~=0) && ad_begun ~=0 && ad_ended ~=0
 
         % everything done! Reset
-        stim_begun = zeros(2,1);
-        stim_ended = zeros(2,1);
-        
-        ad_begun = 0;
-        ad_ended = 0;
-        ad_ch = nan;
     else
         error('what')
 

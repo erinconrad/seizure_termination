@@ -68,8 +68,8 @@ data.end_time = end_time;
 data.file_name = file_name;
 
 
-time_window = 0.2; % 100 ms time windows
-time_stride = 0.2; % 100 ms stride length
+time_window = 0.3; % 100 ms time windows
+time_stride = 0.1; % 100 ms stride length
 
 % Define data times
 data_stream = values;
@@ -92,20 +92,11 @@ s_prev = 0;
 s_prev2 = 0;
 steps = 1:window_length:size(data_stream,1) - window_length + 1;
 nsteps = length(steps);
-times = steps/fs;
-
-%% Filters
-[b_notch,a_notch] = butter(2, [58 62]/(fs/2), 'stop');
-z_notch = zeros(max(length(a_notch),length(b_notch))-1,1); % filter state
-
-[b_pass,a_pass] = butter(2, [1 70]/(fs/2), 'bandpass');
-z_pass = zeros(max(length(a_pass),length(b_pass))-1,1); % filter state
-
 relative_powers = nan(nsteps,nchs);
 ll = nan(nsteps,nchs);
 stim_on = zeros(nsteps,nchs);
 stim_off = zeros(nsteps,nchs);
-
+times = steps/fs;
 
 %% Goertzel algorithm
 % Process the signal in windows
@@ -116,8 +107,11 @@ for start_idx = 1:window_length:size(data_stream,1) - window_length + 1
     count = count + 1;
 
     % notch and bandpass
-    [window_data,z_notch] = filter(b_notch, a_notch, window_data,z_notch);
-    [window_data,z_pass] = filter(b_pass, a_pass, window_data,z_pass);
+    [b, a] = butter(2, [58 62]/(fs/2), 'stop');
+    window_data = filter(b, a, window_data);
+    
+    [b, a] = butter(2, [1 70]/(fs/2), 'bandpass');
+    window_data = filter(b, a, window_data);
 
 
     for j = 1:nchs
