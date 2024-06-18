@@ -45,15 +45,31 @@ while 1
             n_layers = length(session.data.annLayer);
 
             for ai = 1:n_layers
-                a=session.data.annLayer(ai).getEvents(0);
-                n_ann = length(a);
-                for i = 1:n_ann
-                    event(i).start = a(i).start/(1e6);
-                    event(i).stop = a(i).stop/(1e6); % convert from microseconds
-                    event(i).type = a(i).type;
-                    event(i).description = a(i).description;
+                
+                count = 0;
+                
+                while 1
+                    clear event
+
+                    % ask it to pull next (up to 250) events after count
+                    if count == 0
+                        a=session.data.annLayer(ai).getEvents(count);
+                    else
+                        a=session.data.annLayer(ai).getNextEvents(a(n_ann));
+                    end
+                    if isempty(a), break; end
+
+                    n_ann = length(a);
+                    for i = 1:n_ann
+                        event(i).start = a(i).start/(1e6);
+                        event(i).stop = a(i).stop/(1e6); % convert from microseconds
+                        event(i).type = a(i).type;
+                        event(i).description = a(i).description;
+                    end
+                    ann.event(count+1:count+i) = event;
+                    count = count + n_ann;
+                    
                 end
-                ann.event = event;
                 ann.name = session.data.annLayer(ai).name;
                 data.ann(ai) = ann;
             end 

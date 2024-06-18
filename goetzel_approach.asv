@@ -93,7 +93,7 @@ s_prev2 = 0;
 steps = 1:window_length:size(data_stream,1) - window_length + 1;
 nsteps = length(steps);
 times = steps/fs;
-g_state = repmat(struct('s_prev', 0, 's_prev2', 0, 'power_50Hz', 0), nchs, 1);
+g_state = struct('s_prev', 0, 's_prev2', 0, 'power_50Hz', 0);
 
 
 %% Filters
@@ -127,13 +127,13 @@ for start_idx = 1:window_length:size(data_stream,1) - window_length + 1
         if sum(ch) == 0,continue; end
 
         % Apply Goertzel algorithm
-        g_state(j) = process_window(window_data(:,ch), coeff, g_state(j));
+        g_state = process_window(window_data(:,ch), coeff, g_state);
     
         % Calculate total power in the window
         total_power = sum(window_data(:,ch) .^ 2);
     
         % Calculate relative power
-        relative_power = g_state(j).power_50Hz / total_power;
+        relative_power = g_state.power_50Hz / total_power;
         relative_powers(count,j) = relative_power;
 
         % ll
