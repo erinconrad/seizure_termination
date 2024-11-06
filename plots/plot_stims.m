@@ -1,5 +1,5 @@
 function plot_stims(chLabels,chs_of_interest,data_times,data_stream,...
-    time_stamps,fs)
+    time_stamps,fs,indices)
 
 
 nchs = length(chs_of_interest);
@@ -9,7 +9,7 @@ all_ax = nan(4,1);
 for j =1:nchs
     ch = strcmp(chLabels,chs_of_interest{j});
     all_ax(j) = nexttile;
-    plot(data_times,data_stream(:,ch))
+    plot(data_times(indices(1):indices(2)),data_stream(indices(1):indices(2),ch))
     xlim([0 max(data_times)])
 
     if j == 4
@@ -18,7 +18,7 @@ for j =1:nchs
         xticklabels([])
     end
     
-    ylabel('Raw signal')
+    ylabel(sprintf('Raw signal on %s',chs_of_interest{j}))
     hold on
     %{
     if j == 1 || j == 2

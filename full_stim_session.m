@@ -7,6 +7,8 @@
   lengths, what makes sense in continuous scenario
 %}
 
+clear
+
 %% Parameters
 % Goertzel parameters
 f_target = 50;
@@ -34,11 +36,9 @@ stop_looking_time = 5; % if ADs haven't started by now, stop looking
 % Consider measuring pre-stim baseline LL and doing relative threshold!!!
 
 %% Main
-file_name = 'HUP218_phaseII_D02';
-start_time = 193571.76+0; % add 10 to get to 2nd; add 60 to get to 3rd; 80 4th; 130 5th
-end_time = 193591.76+200;
-stim_pair = 'RI04-RI05';
-% example of afterdischarges with stim at RI4-5
+file_name = 'HUP218_HFS';
+start_time = 21238.33;%20736.07; 
+end_time = 21238.33+10;%20736.07+15;%23762.34;
 
 %% File locs and set path
 locations = seizure_termination_paths;
@@ -55,30 +55,20 @@ login_name = locations.ieeg_login;
 data = download_ieeg_data(file_name,login_name,pwfile,[start_time end_time],1); % 1 means get lots of data
 values = data.values;
 chLabels = data.chLabels(:,1);
+chLabels = decompose_labels(chLabels);
 fs = data.fs;
-
-%% Get annotations within time range
-ann = data.ann;
-anns_in_range = cell(0,2);
-for i = 1:length(ann.event)
-    ann_time = ann.event(i).start;
-    if ann_time > start_time && ann_time < end_time
-        anns_in_range = [anns_in_range;{ann_time},{ann.event(i).description}];
-    end
-end
+data.start_time = start_time;
+data.end_time = end_time;
+data.file_name = file_name;
+aT = data.aT;
 
 % Define data times
 data_stream = values;
 data_times = [1:size(values,1)]/fs;
+ieeg_times = linspace(start_time,end_time,size(values,1));
 window_length = round(time_window * fs); 
 stride = round(time_stride * fs);
 
-
-%% Get stim channels and surrounding channels
-[chs_of_interest,stim_idx] = return_chs_of_interest(stim_pair);
-nchs = length(chs_of_interest);
-stim_chs = chs_of_interest(logical(stim_idx));
-surround_chs = chs_of_interest(~logical(stim_idx));
 
 %% Start looking for stim and ADs
 % Initialize Goertzel parameters
@@ -87,9 +77,6 @@ omega = 2 * pi * k / window_length;
 coeff = 2 * cos(omega);
 s_prev = 0;
 s_prev2 = 0;
-
-% Goertzel state
-g_state = struct('s_prev', 0, 's_prev2', 0, 'power_50Hz', 0);
 
 % Filters
 [b_notch,a_notch] = butter(2, [58 62]/(fs/2), 'stop');
@@ -108,16 +95,57 @@ ad_ch = nan;
 
 % Initialize time stamps
 time_stamps = cell(0,3);
+stim_pair = [];
+start_idx = 1;
+first_time = 1;
 
 % Loop over data stream
 for i = window_length+1:stride:length(data_stream)
 
     % Define data window
-    data = data_stream(i-window_length:i,:);
+    curr_values = data_stream(i-window_length:i,:);
+    curr_times = [start_time + data_times(i-window_length),...
+        start_time + data_times(i)];
+
+    % Check for closed or open relay annotations in this window
+    new_stim_pair = find_relay_anns(aT,curr_times);
+    old_stim_pair = stim_pair;
+    if ~isempty(new_stim_pair)
+        stim_pair = new_stim_pair;
+
+    end
+        
+    if ~isempty(old_stim_pair) && ~strcmp(old_stim_pair,new_stim_pair) && ~isempty(new_stim_pair)
+        end_idx = i;
+        time_stamp_times = cell2mat(time_stamps(:,1));
+        curr_time_stamp_indices = time_stamp_times >= start_idx & time_stamp_times <= end_idx;
+        plot_stims(chLabels,chs_of_interest,data_times,data_stream,...
+            time_stamps(curr_time_stamp_indices,:),fs,[start_idx end_idx])
+        old_stim_pair
+        new_stim_pair
+        first_time = 0;
+        pause
+        start_idx = i;
+    end
+
+    if isempty(stim_pair)
+        continue
+    end
+
+
+    if ~isempty(new_stim_pair) || first_time == 1
+        % Get stim channels and surrounding channels
+        [chs_of_interest,stim_idx] = return_chs_of_interest(stim_pair);
+        nchs = length(chs_of_interest);
+        stim_chs = chs_of_interest(logical(stim_idx));
+        surround_chs = chs_of_interest(~logical(stim_idx));
+
+        % Get baseline characteristics on channels
+    end
 
     % notch and bandpass
-    [data,z_notch] = filter(b_notch, a_notch, data,z_notch);
-    [data,z_pass] = filter(b_pass, a_pass, data,z_pass);
+    [curr_values,z_notch] = filter(b_notch, a_notch, curr_values,z_notch);
+    [curr_values,z_pass] = filter(b_pass, a_pass, curr_values,z_pass);
 
     % if stim hasn't begun on both channel
     if any(stim_begun==0) 
@@ -131,15 +159,23 @@ for i = window_length+1:stride:length(data_stream)
             if sum(ch) == 0,error('cannot find stim ch'); end
 
             % restrict to channel
-            data_ch = data(:,ch);
+            data_ch = curr_values(:,ch);
 
             % Apply Goertzel algorithm
-            % Process the window and update state
-            g_state = process_window(data_ch, coeff, g_state);
+            s_prev = 0;
+            s_prev2 = 0;
+            for n = 1:window_length
+                s = curr_values(n,ch) + coeff * s_prev - s_prev2;
+                s_prev2 = s_prev;
+                s_prev = s;
+            end
+
+            % Calculate power at 50 Hz
+            power_50Hz = s_prev2^2 + s_prev^2 - coeff * s_prev * s_prev2;
 
             % Calculate total power in the window
             total_power = sum(data_ch .^ 2);
-            rel_50 = g_state.power_50Hz/total_power;
+            rel_50 = power_50Hz/total_power;
 
             if rel_50 > stim_start_thresh
                 stim_begun(j) = i; % say stim has begun on that channel
@@ -159,13 +195,13 @@ for i = window_length+1:stride:length(data_stream)
             if sum(ch) == 0,error('cannot find stim ch'); end
 
             % restrict to channel
-            data_ch = data(:,ch);
+            data_ch = curr_values(:,ch);
 
             % Apply Goertzel algorithm
             s_prev = 0;
             s_prev2 = 0;
             for n = 1:window_length
-                s = data(n,ch) + coeff * s_prev - s_prev2;
+                s = curr_values(n,ch) + coeff * s_prev - s_prev2;
                 s_prev2 = s_prev;
                 s_prev = s;
             end
@@ -192,7 +228,7 @@ for i = window_length+1:stride:length(data_stream)
             for j = 1:2
                 ch = strcmp(chLabels,surround_chs{j});
                 if sum(ch) == 0,continue; end
-                data_ch = data(:,ch);
+                data_ch = curr_values(:,ch);
                 ll = sum(abs(diff(data_ch)));
     
                 if ll > ad_start_thresh
@@ -210,13 +246,13 @@ for i = window_length+1:stride:length(data_stream)
             if sum(ch) == 0,error('cannot find stim ch'); end
 
             % restrict to channel
-            data_ch = data(:,ch);
+            data_ch = curr_values(:,ch);
 
             % Apply Goertzel algorithm
             s_prev = 0;
             s_prev2 = 0;
             for n = 1:window_length
-                s = data(n,ch) + coeff * s_prev - s_prev2;
+                s = curr_values(n,ch) + coeff * s_prev - s_prev2;
                 s_prev2 = s_prev;
                 s_prev = s;
             end
@@ -244,7 +280,7 @@ for i = window_length+1:stride:length(data_stream)
 
         if sum(ch) == 0,error('cannot find ad ch'); end
 
-        data_ch = data(:,ch);
+        data_ch = curr_values(:,ch);
         ll = sum(abs(diff(data_ch)));
 
         if ll < ad_end_thresh
@@ -263,13 +299,13 @@ for i = window_length+1:stride:length(data_stream)
             if sum(ch) == 0,error('cannot find stim ch'); end
 
             % restrict to channel
-            data_ch = data(:,ch);
+            data_ch = curr_values(:,ch);
 
             % Apply Goertzel algorithm
             s_prev = 0;
             s_prev2 = 0;
             for n = 1:window_length
-                s = data(n,ch) + coeff * s_prev - s_prev2;
+                s = curr_values(n,ch) + coeff * s_prev - s_prev2;
                 s_prev2 = s_prev;
                 s_prev = s;
             end
@@ -306,17 +342,3 @@ for i = window_length+1:stride:length(data_stream)
 
 end
 
-function state = process_window(data, coeff, state)
-    s_prev = state.s_prev;
-    s_prev2 = state.s_prev2;
-    for n = 1:length(data)
-        s = data(n) + coeff * s_prev - s_prev2;
-        s_prev2 = s_prev;
-        s_prev = s;
-    end
-    % Update state
-    state.s_prev = s_prev;
-    state.s_prev2 = s_prev2;
-    % Calculate power at 50 Hz
-    state.power_50Hz = s_prev2^2 + s_prev^2 - coeff * s_prev * s_prev2;
-end

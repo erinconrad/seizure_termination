@@ -19,12 +19,14 @@ assert(strcmp(letter1,letter2))
 num_lower = min([num1,num2])-1;
 num_higher = max([num1,num2])+1;
 if num_lower < 10
-    str_num_lower = sprintf('0%d',num_lower);
+    %str_num_lower = sprintf('0%d',num_lower);
+    str_num_lower = sprintf('%d',num_lower);
 else
     str_num_lower = sprintf('%d',num_lower);
 end
 if num_higher < 10
-    str_num_higher = sprintf('0%d',num_higher);
+    %str_num_higher = sprintf('0%d',num_higher);
+    str_num_higher = sprintf('%d',num_higher);
 else
     str_num_higher = sprintf('%d',num_higher);
 end

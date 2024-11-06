@@ -43,6 +43,7 @@ while 1
 
             % Get annotations
             n_layers = length(session.data.annLayer);
+            all_anns = {};
 
             for ai = 1:n_layers
                 
@@ -61,18 +62,24 @@ while 1
 
                     n_ann = length(a);
                     for i = 1:n_ann
+                        %{
                         event(i).start = a(i).start/(1e6);
                         event(i).stop = a(i).stop/(1e6); % convert from microseconds
                         event(i).type = a(i).type;
                         event(i).description = a(i).description;
+                        %}
+                        all_anns(end+1,:) = ...
+                            {ai, a(i).start/(1e6), a(i).stop/(1e6), a(i).type, a(i).description};
                     end
-                    ann.event(count+1:count+i) = event;
+                    %ann.event(count+1:count+i) = event;
                     count = count + n_ann;
                     
                 end
-                ann.name = session.data.annLayer(ai).name;
-                data.ann(ai) = ann;
+                %ann.name = session.data.annLayer(ai).name;
+                %data.ann(ai) = ann;
             end 
+            aT = cell2table(all_anns,'VariableNames',{'Layer_num','Start','Stop','Type','Description'});
+            data.aT = aT;
 
         end
         

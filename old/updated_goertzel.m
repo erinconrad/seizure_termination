@@ -55,6 +55,7 @@ login_name = locations.ieeg_login;
 data = download_ieeg_data(file_name,login_name,pwfile,[start_time end_time],1); % 1 means get lots of data
 values = data.values;
 chLabels = data.chLabels(:,1);
+chLabels = decompose_labels(chLabels);
 fs = data.fs;
 data.start_time = start_time;
 data.end_time = end_time;
@@ -62,13 +63,14 @@ data.file_name = file_name;
 
 % Define data times
 data_stream = values;
-data_times = [1:size(values,1)]/fs;
+data_times = ([1:size(values,1)]/fs);
 window_length = round(time_window * fs); 
 stride = round(time_stride * fs);
 
 
 %% Get stim channels and surrounding channels
 [chs_of_interest,stim_idx] = return_chs_of_interest(stim_pair);
+chs_of_interest = decompose_labels(chs_of_interest);
 nchs = length(chs_of_interest);
 stim_chs = chs_of_interest(logical(stim_idx));
 surround_chs = chs_of_interest(~logical(stim_idx));
@@ -303,3 +305,6 @@ for i = window_length+1:stride:length(data_stream)
     end
 
 end
+
+plot_stims(chLabels,chs_of_interest,data_times,data_stream,...
+    time_stamps,fs)
