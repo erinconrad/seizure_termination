@@ -17,7 +17,8 @@ for ich = 1:length(chLabels)
     %% Remove leading zero
     % get the non numerical portion
     label_num_idx = regexp(label,'\d');
-    if ~isempty(label_num_idx)
+    if ~isempty(label_num_idx) 
+        
 
         label_non_num = label(1:label_num_idx-1);
 
@@ -29,6 +30,7 @@ for ich = 1:length(chLabels)
         end
 
         label = [label_non_num,label_num];
+
     end
     clean_labels{ich} = label;
 end
