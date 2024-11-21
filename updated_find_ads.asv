@@ -2,8 +2,10 @@
 HUP218_HFS 22366.69 ADs I miss sometimes
 HUP218_HFS 20718.06 start
 
-- last night added criteria that i dont look for ADs for first 100 ms after
-stim offset. Need to test
+testing change to abs number of points meeting criteria
+- HUP218_HFS: looks great through 23118.1 (RD1-2)
+
+Need to update baseline acquisition to be compatible with realtime
 %}
 
 clear
@@ -11,7 +13,7 @@ clear
 %% Parameters
 % Dataset
 file_name = 'HUP218_HFS';%'HUP225_HFS';%'HUP218_HFS';
-start_time = 20718.06;%26550;%26418.10;%14057.47;%20718.06;  %21543 100 s vs 21318 300 s  % 20718.06+800 for 100
+start_time = 20718.06;%14057.47;%20718.06;  %21543 100 s vs 21318 300 s  % 20718.06+800 for 100
 duration = 300;
 end_time = start_time + duration;
 
@@ -32,9 +34,9 @@ perc_above_thresh_stim = 0.5; % What percentage should exceed this power?
 
 % Ad detection parameters
 %bl_chunks = [100 10]; % when to look for baseline for AD comparison (relative to stim start) 
-n_baseline_all = 100;
-n_baseline_keep = 50; % only keep first 25
-coolDownPeriodSecsAD = 0.1;
+n_baseline_all = 50;
+n_baseline_keep = 25; % only keep first 25
+coolDownPeriodSecsAD = 5;
 stopLookingADSecs = 5;
 freq_range = [30 100];%[5 40]; % freq range to get power for AD detection OPTIMIZE THIS
 ad_thresh = 80;%50 % relative power above baseline threshold 
@@ -129,10 +131,7 @@ for startIdx = 1:updateSize:(numSamples - chunkSize)
             look_for_ad = 0;
         %elseif endIdx > last_stim_off + stopLookingAD  
         elseif endIdx/samplingRate + start_time > last_stim_off + stopLookingADSecs
-           
             look_for_ad = 0; % don't look for AD if too far after offset of last stim
-        elseif endIdx/samplingRate + start_time < last_stim_off + coolDownPeriodSecsAD
-            look_for_ad = 0; % don't look if too soon after offset of last stim
         else
             look_for_ad = 1; % otherwise, if stim off, look for AD
         end
@@ -364,7 +363,7 @@ else
             % (Troubleshooting) plot the baseline times
             yl = ylim;
             for j = 1:length(stim_on_times)
-                plot([stim_on_times(j) - chunkDuration*n_baseline_all stim_on_times(j) - chunkDuration*n_baseline_all+chunkDuration*n_baseline_keep],...
+                plot([stim_on_times(j) - chunkDuration*n_baseline_all stim_on_times(j) - chunkDuration*bl_chunks(1)+chunkDuration*bl_chunks(2)],...
                     [yl(1)+0.9*(yl(2)-yl(1)) yl(1)+0.9*(yl(2)-yl(1))],'r')
             end
             
@@ -419,8 +418,8 @@ end
 %pause
 end
 
-if 1
-curr_labs = {'RP5','RP6'};
+if 0
+curr_labs = {'RR4','RR7'};
 for i = 1:length(curr_labs)
     ch = strcmp(chLabels,curr_labs{i}); %RI3
     figure
