@@ -1,17 +1,21 @@
 %{
-HUP218_HFS 22366.69 ADs I miss sometimes
-HUP218_HFS 20718.06 start
+ 
+HUP218_HFS 20718.06 start; 22366.69 ADs I miss sometimes
+HUP225_HFS 13663.77 start
+HUP235_phaseII 444222.18 sz; 441451.70 stim start; 444135 what??
 
-- last night added criteria that i dont look for ADs for first 100 ms after
-stim offset. Need to test
+26644.91 false detection
+
+trying to implement HPF to avoid slow decay AD detection
+.67 s erinfilter
 %}
 
 clear
 
 %% Parameters
-% Dataset
-file_name = 'HUP218_HFS';%'HUP225_HFS';%'HUP218_HFS';
-start_time = 20718.06;%26550;%26418.10;%14057.47;%20718.06;  %21543 100 s vs 21318 300 s  % 20718.06+800 for 100
+% Specific dataset, start time, duration
+file_name = 'HUP235_phaseII';%'HUP225_HFS';%'HUP218_HFS';
+start_time =444222.18;%26344.91;%21560;%26550;%26418.10;%14057.47;
 duration = 300;
 end_time = start_time + duration;
 
@@ -19,37 +23,36 @@ end_time = start_time + duration;
 do_plots = 1;
 
 % Time chunk parameters
-chunkDuration = 0.02; 
-updateInterval = 0.02; 
+chunkDuration = 0.02; % how long to pull (s)
+updateInterval = 0.02; % how much to advance after each pull (s)
 
 % Stim detection parameters
 decay = 0.3; % decay rate in adding old signal to new one (looks for repeated signal at 50 Hz)
 stimPowerBoost = 1e9; % How big does buffer power need to be
-stimOffPower =  1e7; 
-secs_thresh_stim = 0.5; % How long does it need to exceed this power
+stimOffPower =  1e7; % if drops below this, no longer stim
+secs_thresh_stim = 0.5; % How long should it exceed this power
 num_thresh_stim = ceil(secs_thresh_stim/chunkDuration);
 perc_above_thresh_stim = 0.5; % What percentage should exceed this power?
 
 % Ad detection parameters
-%bl_chunks = [100 10]; % when to look for baseline for AD comparison (relative to stim start) 
-n_baseline_all = 100;
-n_baseline_keep = 50; % only keep first 25
-coolDownPeriodSecsAD = 0.1;
-stopLookingADSecs = 5;
-freq_range = [30 100];%[5 40]; % freq range to get power for AD detection OPTIMIZE THIS
-ad_thresh = 80;%50 % relative power above baseline threshold 
-ad_too_high_thresh = 1e3;
+n_baseline_all = 100; % How many baselines to take
+n_baseline_keep = 50; % How many to keep (only keep first 50 because will assume weirdness right before official stim detection)
+stopLookingADSecs = 5; % Stop looking for ADs this long after stim offset
+freq_range = [100 300];%[5 40]; % freq range to get power for AD detection NOT USING
+ad_thresh = 50; % relative power above baseline threshold 80
+ad_too_high_thresh = 1e4; % if relative power above this, assume artifact
+coolDownLastSat = 2; % if ch saturated within this time period, don't look!
 secs_thresh = 1; % How long does it have the opportunity to get the num above thresh
-num_thresh = round(secs_thresh/chunkDuration);
-%perc_above_thresh = 0.2; % what percentage of chunks need to be above threshold
-num_above_thresh = 5;
+num_above_thresh = 10; % How many chunks need to be above threshold to trigger detection 10
 
 
 %% File locs and set path
-locations = seizure_termination_paths;
+locations = seizure_termination_paths; % get paths
+
 % add script folder to path
 scripts_folder = locations.script_folder;
 addpath(genpath(scripts_folder));
+
 % ieeg stuff
 ieeg_folder = locations.ieeg_folder;
 addpath(genpath(ieeg_folder));
@@ -58,34 +61,44 @@ login_name = locations.ieeg_login;
 
 %% Pull data once for the purpose of getting channel info, etc.
 data = download_ieeg_data(file_name,login_name,pwfile,[start_time start_time+1],1);
+samplingRate = data.fs;
+
+% channel labels
 chLabels = data.chLabels(:,1);
 chLabels = decompose_labels(chLabels);
 numChannels = length(chLabels);
-aT = data.aT; % this is just for validation
-samplingRate = data.fs;
 exclude = find_exclude_chs(chLabels);
+
+aT = data.aT; % this is just for validation (will remove for real time processing)
+
 
 %% Convert parameters to time samples
 chunkSize = round(chunkDuration * samplingRate);
 updateSize = round(updateInterval * samplingRate); 
-
-
+num_thresh = round(secs_thresh/chunkDuration);
 
 %% Initialize variables
 % initialize tracker of ad and stim
 T = table('Size',[0 4],'VariableTypes',{'cell','cell','double','double'},'VariableNames',{'Type','Channels','OnTime','OffTime'});
 curr_row = 0; % tracks AD and detections
 
+% initialize stim detection info
 stim_on = 0;
 look_for_stim = 1; % are we looking for stim
 last_stim_chs = [];
+last_stim_off = 1e30;
+look_for_sat = 0;
 
 buffer = zeros(chunkSize,numChannels);
-
 last_ones = zeros(num_thresh,numChannels); % counting how many of the last num_thresh werea above threshold
 last_ones_stim = zeros(num_thresh_stim,numChannels); % counting how many of the last num_thresh werea above threshold
-
+time_since_last_sat = nan(numChannels,1);
 baselines_all = cell(n_baseline_all,1);
+for in = 1:n_baseline_all
+    baselines_all{in} = zeros(chunkSize,numChannels);
+end
+baselines = baselines_all(1:n_baseline_keep);
+zi = zeros(1,numChannels);
 
 % Look over chunks
 while 1
@@ -93,37 +106,86 @@ while 1
 %% Get ieeg data
 data = download_ieeg_data(file_name,login_name,pwfile,[start_time end_time],0); % 1 means get lots of data
 values = data.values;
-times = linspace(0,duration,size(values,1));
-numSamples = size(values,1);
 
+%% High pass filter
+% needed for good performance (removes low frequency decay after stim
+% artifact). NEED TO IMPLEMENT WITHIN 20 MS LOOP
+%[values,zf] = stevefilter(values,zi);
+%zi = zf;
+
+% initialize variables for troubleshooting, not needed for final processing
+numSamples = size(values,1);
 out_samples = 1:updateSize:(numSamples - chunkSize);
 all_all_power = nan(length(out_samples),numChannels);
 all_all_power_avg = nan(length(out_samples),numChannels);
+
 
 count = 0; % troubleshooting thing
 
 % Loop over 20 ms intervals
 for startIdx = 1:updateSize:(numSamples - chunkSize)
     
+    
     % Initially, say we're not looking for offset of stim
     look_for_off = 0;
     count = count + 1; % troubleshooting variable
+
 
     % define the data chunk
     endIdx = startIdx + chunkSize - 1;
     dataChunk = values(startIdx:endIdx, :);
 
+    % exception handling for ieeg nan periods
+    if sum(~isnan(dataChunk),'all') == 0
+        dataChunk = zeros(size(dataChunk));
+    end
+
+    % replace nans with mean across remaining times
+    %
+    for ich = 1:numChannels
+        dataChunk(isnan(dataChunk(:,ich)),ich) = mean(dataChunk(:,ich),"omitnan");
+    end
+    %}
+
+
     % demean the chunk
-    dataChunk = dataChunk - mean(dataChunk,1);
+    dataChunk = dataChunk - mean(dataChunk,1,"omitnan");
+    
+    % HPF
+    oldDataChunk = dataChunk;
+    [dataChunk,zf] = stevefilter(dataChunk,zi);
+    zi = zf;
 
     % remove excluded channels
     dataChunk(exclude) = nan;
+
+    % CAR
+    %dataChunk = dataChunk - median(dataChunk,2,"omitnan");
+
+    % Bipolar ref
+    %
+    [~,bipolarIndices,altBipolarIndices] = find_bipolar_pairs(chLabels,1:length(chLabels));
+    newDataChunk = dataChunk;
+    newDataChunk(:,~isnan(altBipolarIndices)) = dataChunk(:,~isnan(altBipolarIndices)) - dataChunk(:,altBipolarIndices(~isnan(altBipolarIndices)));
+    newDataChunk(:,isnan(altBipolarIndices)) = nan;
+    newDataChunk = newDataChunk - mean(newDataChunk,1,"omitnan");
+    %{
+    newDataChunk = dataChunk;
+    for k = 1:length(chLabels)
+        r = k == bipolarIndices(:,1);
+        if sum(r) == 0, continue; end
+        newDataChunk(:,k) = dataChunk(:,bipolarIndices(r,1)) - dataChunk(:,bipolarIndices(r,2));
+    end
+    %dataChunk = newDataChunk;
+    %}
 
     % If stim is not on, decide whether to look for stim and AD
     if stim_on == 0
         look_for_stim = 1; % look for stim if not current stim
         look_for_off = 0; % don't look for offset if not current stim
+        
 
+        
         % Look for AD if within a certain time period of last stim
         if isempty(last_stim_chs)
             look_for_ad = 0;
@@ -131,21 +193,33 @@ for startIdx = 1:updateSize:(numSamples - chunkSize)
         elseif endIdx/samplingRate + start_time > last_stim_off + stopLookingADSecs
            
             look_for_ad = 0; % don't look for AD if too far after offset of last stim
-        elseif endIdx/samplingRate + start_time < last_stim_off + coolDownPeriodSecsAD
-            look_for_ad = 0; % don't look if too soon after offset of last stim
+            look_for_sat = 0;
         else
             look_for_ad = 1; % otherwise, if stim off, look for AD
         end
+        %}
 
     end
+
+
+
+    %{
+    if ~isempty(last_stim_chs)
+    if endIdx/samplingRate + start_time > last_stim_on + coolDownLastOn
+        error('what')
+    end
+    end
+    %}
 
     if stim_on == 1 % if stim is on, look for stim offset and not stim onset
         look_for_off = 1;
         look_for_stim = 0;
+        look_for_sat = 1;
     end
 
     %% Update buffer (used to look for stim)
-    buffer = buffer*decay + dataChunk; % add dataChunk to last buffer (good for repeated signals)
+    buffer(isnan(buffer)) = dataChunk(isnan(buffer)); % exception handling for nans in ieeg
+    buffer = buffer*decay+dataChunk; % add dataChunk to last buffer (good for repeated signals)
     buffer_power = sum(buffer.^2,1); % get power
     all_all_power(count,:) = buffer_power;
 
@@ -205,6 +279,7 @@ for startIdx = 1:updateSize:(numSamples - chunkSize)
             % Reset the rows of the stim tracker table
             last_stim_rows = [curr_row-1, curr_row];
             stim_on = 1; % say stim is on
+            last_stim_on = T.OnTime(curr_row);
             look_for_ad = 0; % say we should not look for ADs
             ad_chs_this_stim = []; % reset what channels had ADs for this stim period
             last_stim_chs = [keep_bipolar_indices(1) keep_bipolar_indices(2)]; % set these channels to be the last stim channels
@@ -229,7 +304,8 @@ for startIdx = 1:updateSize:(numSamples - chunkSize)
         end
 
         baselines_all(1:end-1) = baselines_all(2:end);
-        baselines_all(end) = {dataChunk};
+        %baselines_all(end) = {dataChunk};
+        baselines_all(end) = {newDataChunk};
     
         
     end
@@ -248,14 +324,16 @@ for startIdx = 1:updateSize:(numSamples - chunkSize)
     end
 
     %% Look for ad
-    if look_for_ad 
-        
+    
+        %error('what')
+    if look_for_sat || look_for_ad
         % calc power
-        power = measure_power(dataChunk,freq_range,samplingRate);
+        %power = measure_power(dataChunk,freq_range,samplingRate,chLabels);
+        power = measure_power(newDataChunk);
         power_avg = power;
 
         % Get the power for the baselines using the same approach
-        baseline_power = cellfun(@(x) measure_power(x,freq_range,samplingRate), baselines, ...
+        baseline_power = cellfun(@(x) measure_power(x), baselines, ...
             'UniformOutput',false);
         baseline_power = cell2mat(baseline_power);
         baseline_power = mean(baseline_power,1); % Take the mean across the baseline
@@ -268,20 +346,32 @@ for startIdx = 1:updateSize:(numSamples - chunkSize)
         % have a special check for likely artifact        
         above_thresh = rel_power_avg > ad_thresh & rel_power_avg < ad_too_high_thresh;
 
-        % Reset tracker for how many were above thresh
-        last_ones(1:end-1,:) = last_ones(2:end,:);
-        last_ones(end,:) = above_thresh;
+        % saturated?
+        saturated = rel_power_avg > ad_too_high_thresh;
+        time_since_last_sat(saturated) = endIdx/samplingRate + start_time; % say it saturated now
+        
+        % reset above thresh designation for those within the saturated
+        % cool down
+        above_thresh(endIdx/samplingRate + start_time-time_since_last_sat<coolDownLastSat) = 0;
 
         % For troubleshooting
         all_all_power(count,:) = power;
         all_all_power_avg(count,:) = rel_power_avg;
+    end
+
+    if look_for_ad 
+        % Reset tracker for how many were above thresh
+        last_ones(1:end-1,:) = last_ones(2:end,:);
+        last_ones(end,:) = above_thresh;
+
+        
 
         % Decide if enough above thresh
         %detected_ad = sum(last_ones==1,1) > size(last_ones,1)*perc_above_thresh;
         detected_ad = sum(last_ones==1,1) > num_above_thresh;
 
         % make it zero if it's not an ad look channel (anything not on the stim electrode, excluding stim contacts!)
-        chs_to_look = ad_look_chs(chLabels,last_stim_chs);
+        chs_to_look = ad_look_chs(chLabels,altBipolarIndices,last_stim_chs);
         detected_ad(chs_to_look == 0) = 0;
 
         % if detection, add it
@@ -306,7 +396,8 @@ for startIdx = 1:updateSize:(numSamples - chunkSize)
                 ad_chs_this_stim = [ad_chs_this_stim;detected_ones(k)];
             end
 
-            last_ones(:) = 0; % reset all to zero
+            
+            last_ones(:,ad_chs_this_stim) = 0; % reset all to zero
 
         end
 
@@ -419,17 +510,27 @@ end
 %pause
 end
 
-if 1
-curr_labs = {'RP5','RP6'};
+if 0
+curr_labs = {'LT3'};
 for i = 1:length(curr_labs)
+    
     ch = strcmp(chLabels,curr_labs{i}); %RI3
+    if sum(~isnan(values(:,ch))) == 0, continue; end
     figure
     nexttile
-    plot(linspace(start_time,end_time,size(values,1)),values(:,ch))
+    plot(linspace(start_time,end_time,size(values,1)),values(:,ch)-median(values(:,~exclude),2,"omitnan"))
+    nexttile
+    alpha = 0.99;
+    [xf,zf] = filter(1-alpha,[1, -alpha],values,zeros(1,numChannels));
+    xout = values - xf;
+    newValues = xout;
+    newValues(:,~isnan(altBipolarIndices)) = newValues(:,~isnan(altBipolarIndices)) - newValues(:,altBipolarIndices(~isnan(altBipolarIndices)));
+    newValues = newValues - mean(newValues,1,"omitnan");
+    plot(linspace(start_time,end_time,size(newValues,1)),newValues(:,ch)-median(newValues(:,~exclude),2,"omitnan"))
     nexttile
     plot(linspace(start_time,end_time,size(all_all_power_avg,1)),all_all_power_avg(:,ch))
     nexttile
-    spectrogram(values(:,ch),100,80,100,samplingRate,'yaxis')
+    spectrogram(newValues(:,ch),100,80,100,samplingRate,'yaxis')
 end
 end
 
@@ -457,10 +558,11 @@ T.AD_display = cellfun(@(x) strjoin(x,','),T.AD_display,'UniformOutput',false);
 %figure
 %imagesc(all_all_rel_power')
 
-function chs_to_look = ad_look_chs(chLabels,stimChs)
+function chs_to_look = ad_look_chs(chLabels,altBipolarIndices,stimChs)
 
-all_chs = 1:length(chLabels);
-is_stim_ch = ismember(all_chs,stimChs)';
+all_chs = (1:length(chLabels))';
+%is_stim_ch = ismember(all_chs,stimChs)';
+is_stim_ch = (ismember(all_chs,stimChs) | ismember(altBipolarIndices,stimChs));
 chs_to_look = logical(zeros(length(chLabels),1));
 
 % get the stim channel labels
@@ -479,6 +581,7 @@ same_elec = cellfun(@(x) strcmp(letterPart,x(1:length(letterPart))),chLabels);
 % Look if it's on same elec as stim channels but is not itself a stim ch
 chs_to_look(same_elec & ~is_stim_ch) = 1;
 %chs_to_look(same_elec) = 1;
+%chs_to_look(~is_stim_ch) = 1;
 
 % exclude excludable channels
 exc = find_exclude_chs(chLabels);
@@ -495,11 +598,12 @@ exclude = ismember(chLabels,excluded);
 end
 
 
-function [bipolarPairs,bipolarIndices] = find_bipolar_pairs(contacts,contactIndices)
+function [bipolarPairs,bipolarIndices,altBipolarIndices] = find_bipolar_pairs(contacts,contactIndices)
 
 % Initialize cell array to store bipolar pairs
 bipolarPairs = {};
 bipolarIndices = [];
+altBipolarIndices = nan(length(contacts),1);
 
 % Loop through each contact to extract letter and number parts
 for i = 1:numel(contacts)
@@ -515,6 +619,7 @@ for i = 1:numel(contacts)
             % If next contact exists, add the pair to bipolarPairs
             bipolarPairs = [bipolarPairs; {contacts{i}, nextContact}];
             bipolarIndices = [bipolarIndices; contactIndices(i) contactIndices(find(strcmp(contacts,nextContact)))];
+            altBipolarIndices(i) = find(strcmp(contacts,nextContact));
         end
     end
 end
@@ -524,25 +629,22 @@ end
 
 
 
-function ll = measure_ll(data)
-
-ll = sum(abs(diff(data,1,1)));
-
-end
-
-function p = measure_power(data,freq_range,fs)
+function p = measure_power(data)
 
 meanValues = mean(data,1,'omitnan');
 nanIndices = isnan(data);
 for col = 1:size(data, 2)
     data(nanIndices(:, col), col) = meanValues(col);
 end
-p = bandpower(data,fs,freq_range);
-
-% rel power
-%p = p./sum(data.^2,1);
 
 % just do abs power
 p = sum(data.^2,1);
 
 end
+
+function [xout,zf] = stevefilter(xin,zi)
+    alpha = 0.99;
+    [xf,zf] = filter(1-alpha,[1, -alpha],xin,zi);
+    xout = xin - xf;
+end
+
