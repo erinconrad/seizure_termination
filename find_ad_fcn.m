@@ -1,26 +1,10 @@
-%{
- 
-HUP218_HFS 20718.06 start; 22366.69 ADs I miss sometimes
-HUP225_HFS 13663.77 start
-HUP235_phaseII 444222.18 sz; 441451.70 stim start; 444135 what??
-
-26644.91 false detection
-
-trying to implement HPF to avoid slow decay AD detection
-.67 s erinfilter
-%}
-
-clear
+function T = find_ad_fcn(file_name,start_time,end_time)
 
 %% Parameters
-% Specific dataset, start time, duration
-file_name = 'HUP255_phaseII';%'HUP225_HFS';%'HUP218_HFS';
-start_time =1058788.18;%26344.91;%21560;%26550;%26418.10;%14057.47;
-duration = 20;
-end_time = start_time + duration;
+duration = end_time - start_time;
 
 % Display option parameters
-do_plots = 1;
+do_plots = 0;
 
 % Time chunk parameters
 chunkDuration = 0.02; % how long to pull (s)
@@ -38,7 +22,6 @@ perc_above_thresh_stim = 0.5; % What percentage should exceed this power?
 n_baseline_all = 100; % How many baselines to take
 n_baseline_keep = 50; % How many to keep (only keep first 50 because will assume weirdness right before official stim detection)
 stopLookingADSecs = 5; % Stop looking for ADs this long after stim offset
-freq_range = [100 300];%[5 40]; % freq range to get power for AD detection NOT USING
 ad_thresh = 50; % relative power above baseline threshold 80
 ad_too_high_thresh = 1e4; % if relative power above this, assume artifact
 coolDownLastSat = 2; % if ch saturated within this time period, don't look!
@@ -101,7 +84,8 @@ baselines = baselines_all(1:n_baseline_keep);
 zi = zeros(1,numChannels);
 
 % Look over chunks
-while 1
+%orig_end_time = end_time;
+%while orig_end_time > end_time
 
 %% Get ieeg data
 data = download_ieeg_data(file_name,login_name,pwfile,[start_time end_time],0); % 1 means get lots of data
@@ -538,22 +522,23 @@ end
 
 
 
-T
+%T
 %return
-fprintf('\nMove on?\n');
-pause
-fprintf('\nMoving on\n');
+%fprintf('\nMove on?\n');
+%pause
+%fprintf('\nMoving on\n');
 
-start_time = start_time + duration;
-end_time = end_time + duration;
-end
+%start_time = start_time + duration;
+%end_time = end_time + duration;
+%end
 
 % clean it up
-ad_empty = cellfun(@(x) isempty(x),T.AD);
-T.AD_display = T.AD;
-T.AD_display(ad_empty) = {{''}};
-T.AD_display = cellfun(@(x) strjoin(x,','),T.AD_display,'UniformOutput',false);
+%ad_empty = cellfun(@(x) isempty(x),T.AD);
+%T.AD_display = T.AD;
+%T.AD_display(ad_empty) = {{''}};
+%T.AD_display = cellfun(@(x) strjoin(x,','),T.AD_display,'UniformOutput',false);
 
+end
 
 %figure
 %imagesc(all_all_rel_power')

@@ -19,6 +19,9 @@ for ich = 1:length(chLabels)
     label_num_idx = regexp(label,'\d');
     if ~isempty(label_num_idx) 
         
+        if ~isscalar(label_num_idx)
+            label_num_idx = label_num_idx(1);
+        end
 
         label_non_num = label(1:label_num_idx-1);
 
