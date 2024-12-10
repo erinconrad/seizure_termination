@@ -1,5 +1,18 @@
 function plot_ad_detections(T,out_folder,surr_time)
 
+%% Paths
+locations = seizure_termination_paths;
+
+% add script folder to path
+scripts_folder = locations.script_folder;
+addpath(genpath(scripts_folder));
+
+% ieeg stuff
+ieeg_folder = locations.ieeg_folder;
+addpath(genpath(ieeg_folder));
+pwfile = locations.ieeg_pw_file;
+login_name = locations.ieeg_login;
+
 currT = T;
 ad_rows = find(strcmp(currT.Type,'AD'));
 if isempty(ad_rows), return; end
