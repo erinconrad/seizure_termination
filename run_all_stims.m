@@ -24,7 +24,7 @@ login_name = locations.ieeg_login;
 mkdir(out_folder)
 
 %% Get list of stim sessions
-fT = readtable([results_folder,'hfs_sessions_fake.csv']);
+fT = readtable([results_folder,'hfs_sessions.csv']);
 nfiles = size(fT,1);
 
 %% Initialize variables
