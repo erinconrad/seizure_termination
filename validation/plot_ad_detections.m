@@ -31,6 +31,9 @@ for ia = 1:length(ad_rows)
     chLabels = decompose_labels(chLabels);
     ch_idx = strcmp(chLabels,ad_ch);
     values = data.values(:,ch_idx);
+
+    % notch filter to aid with visualization
+    values = bandstop(values,[58 62],data.fs);
     plot(linspace(-surr_time,surr_time,length(values)),values)
     xlabel('seconds')
     title(sprintf('%1.1f %s',ad_time,ad_ch))
