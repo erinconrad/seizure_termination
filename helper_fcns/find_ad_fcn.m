@@ -1,7 +1,6 @@
 function T = find_ad_fcn(file_name,start_time,end_time)
 
 %% Parameters
-duration = end_time - start_time;
 
 % Display option parameters
 do_plots = 0;
