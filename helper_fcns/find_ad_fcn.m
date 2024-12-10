@@ -3,7 +3,7 @@ function T = find_ad_fcn(file_name,start_time,end_time)
 %% Parameters
 
 % Display option parameters
-do_plots = 0;
+do_plots = 1;
 
 % Time chunk parameters
 chunkDuration = 0.02; % how long to pull (s)

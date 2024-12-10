@@ -1,6 +1,7 @@
 % do all stim
 
 %% Parameters
+overwrite = 0;
 surr_time = 15;
 
 %% Paths
@@ -36,6 +37,13 @@ for i = 1:nfiles
     ieeg_name = fT.ieeg_name{i};
     start_time = fT.start(i);
     end_time = fT.xEnd(i);
+
+    if overwrite == 0
+        if exist([out_folder,ieeg_name,'_detections.csv'],'file') ~= 0
+            fprintf('\nAlready did %s, skipping...\n',ieeg_name);
+            continue;
+        end
+    end
 
     %% Get the stim and AD annotations
     fprintf('\nDoing %s, file %d of %d\n',ieeg_name,i,nfiles);
