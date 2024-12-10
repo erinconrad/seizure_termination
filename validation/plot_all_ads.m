@@ -23,11 +23,13 @@ mkdir(out_folder)
 
 
 %% Get list of detection files
-listing = dir([out_folder,'*.detections.csv']);
+listing = dir([out_folder,'*detections.csv']);
 nfiles = length(listing);
 
 % Loop
 for i = 1:nfiles
+    if strcmp(listing(i).name(1),'.'), continue; end
+
     fname = [out_folder,'/',listing(i).name];
     currT = readtable(fname);
 
