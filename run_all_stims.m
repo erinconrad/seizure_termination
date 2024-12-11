@@ -61,11 +61,12 @@ for i = 1:nfiles
         curr_start = start_time + max_dur*(r-1);
         curr_end = min([end_time,curr_start+max_dur]);
 
-        currT = find_ad_fcn(ieeg_name,curr_start,curr_end);
+        tempT = find_ad_fcn(ieeg_name,curr_start,curr_end);
+        currT = tempT;
         currT.FileName = repmat({ieeg_name},size(currT,1),1);
         currT.Modifier = repmat(modifier,size(currT,1),1);
         currT.Run = repmat(r,size(currT,1),1);
-        currT = currT(:, ['FileName', 'Modifier','Run', T.Properties.VariableNames(1:end-3)]);
+        currT = currT(:, ['FileName', 'Modifier','Run', currT.Properties.VariableNames(1:end-3)]);
         T = [T;currT];
     end
 
