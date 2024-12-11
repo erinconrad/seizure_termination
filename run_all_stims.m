@@ -36,10 +36,11 @@ for i = 1:nfiles
     start_time = fT.start(i);
     end_time = fT.xEnd(i);
     modifier = fT.Modifier(i);
+    csv_out_name = [out_folder,ieeg_name,'_',sprintf('%d',modifier),'_detections.csv'];
 
     if overwrite == 0
-        if exist([out_folder,ieeg_name,'_',modifier,'_detections.csv'],'file') ~= 0
-            fprintf('\nAlready did %s, skipping...\n',ieeg_name);
+        if exist(csv_out_name,'file') ~= 0
+            fprintf('\nAlready did %s modifier %d, skipping...\n',ieeg_name,modifier);
             continue;
         end
     end
@@ -72,7 +73,7 @@ for i = 1:nfiles
 
     
     
-    writetable(T,[out_folder,ieeg_name,'_',modifier,'_detections.csv']);
+    writetable(T,csv_out_name);
 
     %% Plot the EEG surrounding each of the ADs
     plot_ad_detections(T,out_folder,surr_time)
