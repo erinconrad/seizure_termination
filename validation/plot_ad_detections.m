@@ -25,6 +25,7 @@ for ia = 1:length(ad_rows)
     ad_time = currT.OnTime(row);
     ad_ch = currT.Channels{row};
     ieeg_name = currT.FileName{row};
+    modifier = currT.Modifier(row);
     data = download_ieeg_data(ieeg_name, login_name, pwfile, ...
         [ad_time-surr_time,ad_time+surr_time], 1);
     chLabels = data.chLabels(:,1);
@@ -39,7 +40,7 @@ for ia = 1:length(ad_rows)
     title(sprintf('%1.1f %s',ad_time,ad_ch))
     
 end
-print(gcf,[out_folder,ieeg_name,'_ads'],'-dpng')
+print(gcf,[out_folder,ieeg_name,'_',modifier,'_ads'],'-dpng')
 close gcf
 
 
