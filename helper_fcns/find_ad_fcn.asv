@@ -546,10 +546,10 @@ function chs_to_look = ad_look_chs(chLabels,altBipolarIndices,stimChs,file_name)
 
 %% Grab all channels
 all_chs = (1:length(chLabels))';
+%is_stim_ch = ismember(all_chs,stimChs)';
 chs_to_look = logical(zeros(length(chLabels),1));
 
-%% Find channels on same electrode as stim channel
-is_stim_ch = (ismember(all_chs,stimChs) | ismember(altBipolarIndices,stimChs));
+%% Get stim chann
 % get the stim channel labels
 stimChLabels = chLabels(stimChs);
 
@@ -560,13 +560,6 @@ stimChLabel = stimChLabels{1};
 match = regexp(stimChLabel, '([A-Z]+)(\d+)', 'tokens');
 letterPart = match{1}{1};
 
-% Find all channels that start with the same letters
-checkLabel = @(x) ...
-    (length(x) >= length(letterPart)) && strcmp(letterPart, x(1:length(letterPart)));
-
-same_elec = cellfun(checkLabel, chLabels);
-
-%% Find channels on contact <11 (to avoid out of brain)
 % Apply regexp to each element of the cell array to find numbers at the end
 numericParts = cellfun(@(s) regexp(s, '\d+$', 'match'), chLabels, 'UniformOutput', false);
 
@@ -577,9 +570,14 @@ numericValues = cellfun(@(x) ifelse(~isempty(x), str2double(x{1}), NaN), numeric
 numericValues(cellfun(@isempty, numericValues)) = {NaN};
 numericValues = cell2mat(numericValues);
 
-less_than_eleven = numericValues < 11; % higher numbered outside brain and susceptible to noise;
+% Find all channels that start with the same letters
+checkLabel = @(x) ...
+    (length(x) >= length(letterPart)) && strcmp(letterPart, x(1:length(letterPart)));
 
-%% Define what to look for
+same_elec = cellfun(checkLabel, chLabels);
+less_than_eleven = numericValues < 11; % higher numbered outside brain and susceptible to noise;
+%same_elec = cellfun(@(x) strcmp(letterPart,x(1:length(letterPart))),chLabels);
+
 % Look if it's on same elec as stim channels but is not itself a stim ch
 if strcmp(file_name,'HUP260_phaseII')
     chs_to_look(same_elec & ~is_stim_ch) = 1;
