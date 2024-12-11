@@ -3,6 +3,7 @@
 %% Parameters
 overwrite = 1;
 surr_time = 15;
+max_dur = 2000;
 
 %% Paths
 locations = seizure_termination_paths;
@@ -49,6 +50,9 @@ for i = 1:nfiles
 
     %% Get the stim and AD annotations
     fprintf('\nDoing %s_%d, file %d of %d\n',ieeg_name,modifier,i,nfiles);
+
+    %% Handle long stim sessions
+
     currT = find_ad_fcn(ieeg_name,start_time,end_time);
     currT.FileName = repmat({ieeg_name},size(currT,1),1);
     currT.Modifier = repmat(modifier,size(currT,1),1);

@@ -572,7 +572,7 @@ same_elec = cellfun(checkLabel, chLabels);
 numericParts = cellfun(@(s) regexp(s, '\d+$', 'match'), chLabels, 'UniformOutput', false);
 
 % Initialize a numeric array filled with NaN
-numericArray = nan(size(strs));
+numericArray = nan(size(chLabels));
 
 % Find which elements are not empty
 notEmptyIdx = ~cellfun(@isempty, numericParts);
