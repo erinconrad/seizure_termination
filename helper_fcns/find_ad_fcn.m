@@ -560,10 +560,10 @@ match = regexp(stimChLabel, '([A-Z]+)(\d+)', 'tokens');
 letterPart = match{1}{1};
 
 % Apply regexp to each element of the cell array to find numbers at the end
-numericParts = cellfun(@(s) regexp(s, '\d+$', 'match'), chLabels, 'UniformOutput', false);
+numericParts = cellfun(@(s) regexp(s, '\d+$', 'match'), strs, 'UniformOutput', false);
 
-% Convert matched parts to numbers or NaN if no match is found
-numericValues = cellfun(@(x) str2double(x{1}), numericParts, 'UniformOutput', false);
+% Convert matched parts to numbers, handling cases with no matches
+numericValues = cellfun(@(x) ifelse(~isempty(x), str2double(x{1}), NaN), numericParts);
 
 % Replace empty cells with NaN
 numericValues(cellfun(@isempty, numericValues)) = {NaN};
