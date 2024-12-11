@@ -3,7 +3,7 @@ function T = find_ad_fcn(file_name,start_time,end_time)
 %% Parameters
 
 % Display option parameters
-do_plots = 1;
+do_plots = 0;
 
 % Time chunk parameters
 chunkDuration = 0.02; % how long to pull (s)
@@ -354,7 +354,7 @@ for startIdx = 1:updateSize:(numSamples - chunkSize)
         detected_ad = sum(last_ones==1,1) > num_above_thresh;
 
         % make it zero if it's not an ad look channel (anything not on the stim electrode, excluding stim contacts!)
-        chs_to_look = ad_look_chs(chLabels,altBipolarIndices,last_stim_chs);
+        chs_to_look = ad_look_chs(chLabels,altBipolarIndices,last_stim_chs,file_name);
         detected_ad(chs_to_look == 0) = 0;
 
         % if detection, add it
@@ -542,7 +542,7 @@ end
 %figure
 %imagesc(all_all_rel_power')
 
-function chs_to_look = ad_look_chs(chLabels,altBipolarIndices,stimChs)
+function chs_to_look = ad_look_chs(chLabels,altBipolarIndices,stimChs,file_name)
 
 all_chs = (1:length(chLabels))';
 %is_stim_ch = ismember(all_chs,stimChs)';
@@ -559,15 +559,30 @@ stimChLabel = stimChLabels{1};
 match = regexp(stimChLabel, '([A-Z]+)(\d+)', 'tokens');
 letterPart = match{1}{1};
 
+% Apply regexp to each element of the cell array to find numbers at the end
+numericParts = cellfun(@(s) regexp(s, '\d+$', 'match'), chLabels, 'UniformOutput', false);
+
+% Convert matched parts to numbers or NaN if no match is found
+numericValues = cellfun(@(x) str2double(x{1}), numericParts, 'UniformOutput', false);
+
+% Replace empty cells with NaN
+numericValues(cellfun(@isempty, numericValues)) = {NaN};
+numericValues = cell2mat(numericValues);
+
 % Find all channels that start with the same letters
 checkLabel = @(x) ...
     (length(x) >= length(letterPart)) && strcmp(letterPart, x(1:length(letterPart)));
 
 same_elec = cellfun(checkLabel, chLabels);
+less_than_eleven = numericValues < 11; % higher numbered outside brain and susceptible to noise;
 %same_elec = cellfun(@(x) strcmp(letterPart,x(1:length(letterPart))),chLabels);
 
 % Look if it's on same elec as stim channels but is not itself a stim ch
-chs_to_look(same_elec & ~is_stim_ch) = 1;
+if strcmp(file_name,'HUP260_phaseII')
+    chs_to_look(same_elec & ~is_stim_ch) = 1;
+else
+    chs_to_look(same_elec & ~is_stim_ch & less_than_eleven) = 1;
+end
 %chs_to_look(same_elec) = 1;
 %chs_to_look(~is_stim_ch) = 1;
 

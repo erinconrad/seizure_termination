@@ -1,7 +1,7 @@
 % do all stim
 
 %% Parameters
-overwrite = 0;
+overwrite = 1;
 surr_time = 15;
 
 %% Paths
