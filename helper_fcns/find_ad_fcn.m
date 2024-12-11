@@ -13,7 +13,7 @@ updateInterval = 0.02; % how much to advance after each pull (s)
 decay = 0.3; % decay rate in adding old signal to new one (looks for repeated signal at 50 Hz)
 stimPowerBoost = 1e9; % How big does buffer power need to be
 stimOffPower =  1e7; % if drops below this, no longer stim
-secs_thresh_stim = 0.5; % How long should it exceed this power
+secs_thresh_stim = 0.3; % How long should it exceed this power
 num_thresh_stim = ceil(secs_thresh_stim/chunkDuration);
 perc_above_thresh_stim = 0.5; % What percentage should exceed this power?
 
