@@ -1,4 +1,4 @@
-function plot_ad_detections(T,out_folder,surr_time)
+function plot_ad_detections(T,ad_out_name,surr_time)
 
 %% Paths
 locations = seizure_termination_paths;
@@ -40,7 +40,7 @@ for ia = 1:length(ad_rows)
     title(sprintf('%1.1f %s',ad_time,ad_ch))
     
 end
-print(gcf,[out_folder,ieeg_name,'_',modifier,'_ads'],'-dpng')
+print(gcf,ad_out_name,'-dpng')
 close gcf
 
 
