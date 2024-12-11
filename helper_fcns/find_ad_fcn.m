@@ -568,16 +568,20 @@ same_elec = cellfun(checkLabel, chLabels);
 
 %% Find channels on contact <11 (to avoid out of brain)
 % Apply regexp to each element of the cell array to find numbers at the end
+% Use regexp to find a trailing sequence of digits (if any) for each string
 numericParts = cellfun(@(s) regexp(s, '\d+$', 'match'), chLabels, 'UniformOutput', false);
 
-% Convert matched parts to numbers, handling cases with no matches
-numericValues = cellfun(@(x) ifelse(~isempty(x), str2double(x{1}), NaN), numericParts);
+% Initialize a numeric array filled with NaN
+numericArray = nan(size(strs));
 
-% Replace empty cells with NaN
-numericValues(cellfun(@isempty, numericValues)) = {NaN};
-numericValues = cell2mat(numericValues);
+% Find which elements are not empty
+notEmptyIdx = ~cellfun(@isempty, numericParts);
 
-less_than_eleven = numericValues < 11; % higher numbered outside brain and susceptible to noise;
+% For those with matches, convert the matched string to a double
+numericArray(notEmptyIdx) = cellfun(@(x) str2double(x{1}), numericParts(notEmptyIdx));
+
+
+less_than_eleven = numericArray < 11; % higher numbered outside brain and susceptible to noise;
 
 %% Define what to look for
 % Look if it's on same elec as stim channels but is not itself a stim ch
