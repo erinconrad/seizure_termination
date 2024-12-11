@@ -29,7 +29,8 @@ nfiles = size(fT,1);
 
 %% Initialize variables
 % initialize tracker of ad and stim
-T = table('Size',[0 5],'VariableTypes',{'cell','cell','cell','double','double'},'VariableNames',{'FileName','Modifier','Type','Channels','OnTime','OffTime'});
+T = table('Size',[0 6],'VariableTypes',{'cell','double','cell','cell','double','double'},...
+    'VariableNames',{'FileName','Modifier','Type','Channels','OnTime','OffTime'});
 
 
 % Loop over files
