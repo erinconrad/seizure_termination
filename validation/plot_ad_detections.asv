@@ -52,7 +52,7 @@ for i = 1:nfigs
         title(sprintf('%1.1f %s',ad_time,ad_ch))
         
     end
-    print(gcf,ad_out_name,sprintf('_fig%d',i),'-dpng')
+    print(gcf,ad_out_name,sprintf('_fig,'-dpng')
     close gcf
 
 
