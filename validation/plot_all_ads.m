@@ -33,7 +33,7 @@ for i = 1:nfiles
     fname = [out_folder,'/',listing(i).name];
     currT = readtable(fname);
     ieeg_name = currT.FileName{1};
-    modifier = currT.Modifier{1};
+    modifier = currT.Modifier(1);
     ad_out_name = [out_folder,ieeg_name,'_',sprintf('%d',modifier),'_ads'];
 
 
