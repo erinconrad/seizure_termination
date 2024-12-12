@@ -1,7 +1,7 @@
 % do all stim
 
 %% Parameters
-overwrite = 1;
+overwrite = 0;
 surr_time = 15;
 max_dur = 2000;
 
