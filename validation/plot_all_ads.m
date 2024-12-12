@@ -34,7 +34,7 @@ for i = 1:nfiles
     currT = readtable(fname);
     ieeg_name = currT.FileName{1};
     modifier = currT.Modifier(1);
-    ad_out_name = [out_folder,ieeg_name,'_',sprintf('%d',modifier),'_ads'];
+    ad_out_name = [out_folder,ieeg_name,'_',num2str(modifier),'_ads'];
 
 
     %% PLot
