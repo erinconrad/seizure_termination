@@ -3,7 +3,7 @@ function T = find_ad_fcn(file_name,start_time,end_time)
 %% Parameters
 
 % Display option parameters
-do_plots = 0;
+do_plots = 1;
 
 % Time chunk parameters
 chunkDuration = 0.02; % how long to pull (s)
@@ -27,7 +27,7 @@ coolDownLastSat = 2; % if ch saturated within this time period, don't look! % re
 secs_thresh = 2; % How long does it have the opportunity to get the num above thresh % increased 1->2
 num_above_thresh = 10; % How many chunks need to be above threshold to trigger detection 
 hfband = [400 500]; % look for high frequency power as an artifact detector
-hfthresh = 1e4; % if hf energy above this, dont count it as being above threshold for AD detection
+hfthresh = 1e4;
 
 %% File locs and set path
 locations = seizure_termination_paths; % get paths
@@ -333,12 +333,6 @@ for startIdx = 1:updateSize:(numSamples - chunkSize)
         % have a special check for likely artifact        
         above_thresh = rel_power_avg > ad_thresh & rel_power_avg < ad_too_high_thresh;
 
-        % Look for high frequency power - make zero if too high
-        high_freq_power = measure_power(newDataChunk,hfband,samplingRate);
-        all_hfp(count,:) = high_freq_power;
-        too_much_high_freq = high_freq_power > hfthresh;
-        above_thresh(too_much_high_freq) = 0;
-
         % saturated?
         saturated = rel_power_avg > ad_too_high_thresh;
         time_since_last_sat(saturated) = endIdx/samplingRate + start_time; % say it saturated now
@@ -364,7 +358,11 @@ for startIdx = 1:updateSize:(numSamples - chunkSize)
         %detected_ad = sum(last_ones==1,1) > size(last_ones,1)*perc_above_thresh;
         detected_ad = sum(last_ones==1,1) > num_above_thresh;
 
-        
+        % Look for high frequency power - make zero if too high
+        high_freq_power = measure_power(newDataChunk,hfband,samplingRate);
+        all_hfp(count,:) = high_freq_power;
+        too_much_high_freq = high_freq_power > hfthresh;
+        detected_ad(too_much_high_freq) = 0;
 
         % make it zero if it's not an ad look channel (anything not on the stim electrode, excluding stim contacts!)
         chs_to_look = ad_look_chs(chLabels,altBipolarIndices,last_stim_chs,file_name);
@@ -506,7 +504,7 @@ end
 %pause
 end
 
-if 0
+if 1
 curr_labs = {'LT1'};
 for i = 1:length(curr_labs)
     
