@@ -659,7 +659,7 @@ function p = measure_power(data,freq_band,fs)
 meanValues = mean(data,1,'omitnan');
 nanIndices = isnan(data);
 for col = 1:size(data, 2)
-    data(nanIndices(:, col), col) = meanValues(col);
+    data(nanIndices(:, col), col) = meanValues(col); % this takes a LOONG time. why am I doing this????
 end
 
 if exist('freq_band','var') == 0
