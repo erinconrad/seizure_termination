@@ -42,12 +42,26 @@ for i = 1:nfigs
             [ad_time-surr_time,ad_time+surr_time], 1);
         chLabels = data.chLabels(:,1);
         chLabels = decompose_labels(chLabels);
+        [~,bipolarIndices,altBipolarIndices] = find_bipolar_pairs(chLabels,1:length(chLabels));
         ch_idx = strcmp(chLabels,ad_ch);
-        values = data.values(:,ch_idx);
+        %values = data.values(:,ch_idx);
+        values = data.values;
+
+        % bipolar
+        biValues = values;
+        biValues(:,~isnan(altBipolarIndices)) = values(:,~isnan(altBipolarIndices)) - values(:,altBipolarIndices(~isnan(altBipolarIndices)));
+        biValues(:,isnan(altBipolarIndices)) = nan;
+        biValues = biValues - mean(biValues,1,"omitnan");
+
+        % restrict to ch of interest
+        biValues = biValues(:,ch_idx);
     
         % notch filter to aid with visualization
-        values = bandstop(values,[58 62],data.fs);
-        plot(linspace(-surr_time,surr_time,length(values)),values)
+        biValues = bandstop(biValues,[58 62],data.fs);
+
+        
+
+        plot(linspace(-surr_time,surr_time,length(biValues)),biValues)
         xlabel('seconds')
         title(sprintf('%1.1f %s',ad_time,ad_ch))
         
@@ -57,5 +71,34 @@ for i = 1:nfigs
 
 
 end
+
+end
+
+function [bipolarPairs,bipolarIndices,altBipolarIndices] = find_bipolar_pairs(contacts,contactIndices)
+
+% Initialize cell array to store bipolar pairs
+bipolarPairs = {};
+bipolarIndices = [];
+altBipolarIndices = nan(length(contacts),1);
+
+% Loop through each contact to extract letter and number parts
+for i = 1:numel(contacts)
+    % Parse the current contact
+    match = regexp(contacts{i}, '([A-Z]+)(\d+)', 'tokens');
+    if ~isempty(match)
+        letterPart = match{1}{1};               % Extract letter part
+        numberPart = str2double(match{1}{2});    % Extract number part as double
+
+        % Check for the next contact with the same letter part and incremented number
+        nextContact = sprintf('%s%d', letterPart, numberPart + 1);
+        if any(strcmp(contacts, nextContact))
+            % If next contact exists, add the pair to bipolarPairs
+            bipolarPairs = [bipolarPairs; {contacts{i}, nextContact}];
+            bipolarIndices = [bipolarIndices; contactIndices(i) contactIndices(find(strcmp(contacts,nextContact)))];
+            altBipolarIndices(i) = find(strcmp(contacts,nextContact));
+        end
+    end
+end
+
 
 end

@@ -29,10 +29,6 @@ num_above_thresh = 10; % How many chunks need to be above threshold to trigger d
 hfband = [400 500]; % look for high frequency power as an artifact detector
 hfthresh = 1e4; % if hf energy above this, dont count it as being above threshold for AD detection
 
-% Bad channel parameters
-bad_ch_amp = 1e4; % add a bad count if exceeds this outside of stim
-n_bad = 10; % if more than this number above bad_ch_amp outside of stim, call it bad
-
 %% File locs and set path
 locations = seizure_termination_paths; % get paths
 
@@ -55,9 +51,6 @@ chLabels = data.chLabels(:,1);
 chLabels = decompose_labels(chLabels);
 numChannels = length(chLabels);
 exclude = find_exclude_chs(chLabels);
-
-% start bad channel counter
-bad_ch_counter = zeros(1,numChannels);
 
 aT = data.aT; % this is just for validation (will remove for real time processing)
 
@@ -217,9 +210,6 @@ for startIdx = 1:updateSize:(numSamples - chunkSize)
 
     %% Look for stim
     if look_for_stim == 1
-
-        % not during stim, look for channels to add to bad ch counter
-        bad_ch_counter = bad_ch_counter + sum(newDataChunk > bad_ch_amp,1);
     
         % Get channels meeting amplitude criteria
         chs_above_thresh = buffer_power > stimPowerBoost;
@@ -367,6 +357,8 @@ for startIdx = 1:updateSize:(numSamples - chunkSize)
         last_ones(1:end-1,:) = last_ones(2:end,:);
         last_ones(end,:) = above_thresh;
 
+        
+
 
         % Decide if enough above thresh
         %detected_ad = sum(last_ones==1,1) > size(last_ones,1)*perc_above_thresh;
@@ -377,9 +369,6 @@ for startIdx = 1:updateSize:(numSamples - chunkSize)
         % make it zero if it's not an ad look channel (anything not on the stim electrode, excluding stim contacts!)
         chs_to_look = ad_look_chs(chLabels,altBipolarIndices,last_stim_chs,file_name);
         detected_ad(chs_to_look == 0) = 0;
-
-        % make zero if bad ch counter above limit
-        detected_ad(bad_ch_counter > n_bad) = 0;
 
         % if detection, add it
         if any(detected_ad,'all')      
