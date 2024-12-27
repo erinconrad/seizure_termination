@@ -26,8 +26,8 @@ ad_too_high_thresh = 1e4; % if relative power above this, assume artifact
 coolDownLastSat = 2; % if ch saturated within this time period, don't look! % reduced 2->1 then back to 2
 secs_thresh = 2; % How long does it have the opportunity to get the num above thresh % increased 1->2
 num_above_thresh = 10; % How many chunks need to be above threshold to trigger detection 
-hfband = [400 500]; % look for high frequency power as an artifact detector
-hfthresh = 1e4; % if hf energy above this, dont count it as being above threshold for AD detection
+hfband = [100 200]; % look for high frequency power as an artifact detector reduced from [400 500]
+hfthresh = 5e2; % if hf energy above this, dont count it as being above threshold for AD detection reduced from [1e4]
 
 % Bad channel parameters
 bad_ch_amp = 1e4; % add a bad count if exceeds this outside of stim
@@ -539,7 +539,7 @@ end
 end
 
 if 0
-curr_labs = {'LI3'};
+curr_labs = {'LE6'};
 for i = 1:length(curr_labs)
     
     ch = strcmp(chLabels,curr_labs{i}); %RI3
