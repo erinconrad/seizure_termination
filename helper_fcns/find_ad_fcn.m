@@ -32,7 +32,8 @@ hfthresh = 1e4; % if hf energy above this, dont count it as being above threshol
 % Bad channel parameters
 bad_ch_amp = 1e4; % add a bad count if exceeds this outside of stim
 n_bad = 10; % if more than this number above bad_ch_amp outside of stim, call it bad
-n_bad_reset = 1000; % reduce bad ch count by 1 after this many loops
+n_bad_reset = 100; % reduce bad ch count by 1 after this many loops
+n_reduce_bad = 5;
 
 %% File locs and set path
 locations = seizure_termination_paths; % get paths
@@ -126,7 +127,7 @@ for startIdx = 1:updateSize:(numSamples - chunkSize)
     if n_bad_loop_counter == n_bad_reset
 
         % reduce bad ch counter by one at the reset (min 0)
-        bad_ch_counter = max([zeros(1,numChannels);bad_ch_counter-ones(1,numChannels)],[],1);
+        bad_ch_counter = max([zeros(1,numChannels);bad_ch_counter-n_reduce_bad*ones(1,numChannels)],[],1);
         n_bad_loop_counter = 0; % and reset the loop counter
     end
     
