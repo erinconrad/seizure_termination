@@ -21,13 +21,13 @@ perc_above_thresh_stim = 0.5; % What percentage should exceed this power?
 n_baseline_all = 100; % How many baselines to take
 n_baseline_keep = 50; % How many to keep (only keep first 50 because will assume weirdness right before official stim detection)
 stopLookingADSecs = 5; % Stop looking for ADs this long after stim offset
-ad_thresh = 50; % relative power above baseline threshold 80
+ad_thresh = 40; % relative power above baseline threshold reduced 50->40 12/28
 ad_too_high_thresh = 1e4; % if relative power above this, assume artifact
 coolDownLastSat = 2; % if ch saturated within this time period, don't look! % reduced 2->1 then back to 2
 secs_thresh = 2; % How long does it have the opportunity to get the num above thresh % increased 1->2
 num_above_thresh = 10; % How many chunks need to be above threshold to trigger detection 
-hfband = [400 500]; % look for high frequency power as an artifact detector reduced from [400 500]
-hfthresh = 1e4; % if hf energy above this, dont count it as being above threshold for AD detection reduced from [1e4]
+hfband = [400 500]; % look for high frequency power as an artifact detector 
+hfthresh = 1e4; % if hf energy above this, dont count it as being above threshold for AD detection 
 
 % Bad channel parameters
 bad_ch_amp = 1e4; % add a bad count if exceeds this outside of stim

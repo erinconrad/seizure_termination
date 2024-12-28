@@ -26,8 +26,14 @@ ad_too_high_thresh = 1e4; % if relative power above this, assume artifact
 coolDownLastSat = 2; % if ch saturated within this time period, don't look! % reduced 2->1 then back to 2
 secs_thresh = 2; % How long does it have the opportunity to get the num above thresh % increased 1->2
 num_above_thresh = 10; % How many chunks need to be above threshold to trigger detection 
-hfband = [400 500]; % look for high frequency power as an artifact detector
-hfthresh = 1e4; % if hf energy above this, dont count it as being above threshold for AD detection
+hfband = [400 500]; % look for high frequency power as an artifact detector reduced from [400 500]
+hfthresh = 1e4; % if hf energy above this, dont count it as being above threshold for AD detection reduced from [1e4]
+
+% Bad channel parameters
+bad_ch_amp = 1e4; % add a bad count if exceeds this outside of stim
+n_bad = 10; % if more than this number above bad_ch_amp outside of stim, call it bad
+n_bad_reset = 100; % reduce bad ch count by 1 after this many loops
+n_reduce_bad = 5;
 
 %% File locs and set path
 locations = seizure_termination_paths; % get paths
@@ -51,6 +57,10 @@ chLabels = data.chLabels(:,1);
 chLabels = decompose_labels(chLabels);
 numChannels = length(chLabels);
 exclude = find_exclude_chs(chLabels);
+
+% start bad channel counter
+bad_ch_counter = zeros(1,numChannels);
+n_bad_loop_counter = 0;
 
 aT = data.aT; % this is just for validation (will remove for real time processing)
 
@@ -109,6 +119,17 @@ count = 0; % troubleshooting thing
 
 % Loop over 20 ms intervals
 for startIdx = 1:updateSize:(numSamples - chunkSize)
+
+    % increase the n_bad_loop counteer
+    n_bad_loop_counter = n_bad_loop_counter + 1;
+
+    % if you've gone through n_bad_reset loops
+    if n_bad_loop_counter == n_bad_reset
+
+        % reduce bad ch counter by one at the reset (min 0)
+        bad_ch_counter = max([zeros(1,numChannels);bad_ch_counter-n_reduce_bad*ones(1,numChannels)],[],1);
+        n_bad_loop_counter = 0; % and reset the loop counter
+    end
     
     
     % Initially, say we're not looking for offset of stim
@@ -210,6 +231,9 @@ for startIdx = 1:updateSize:(numSamples - chunkSize)
 
     %% Look for stim
     if look_for_stim == 1
+
+        % not during stim, look for channels to add to bad ch counter
+        bad_ch_counter = bad_ch_counter + sum(newDataChunk > bad_ch_amp,1);
     
         % Get channels meeting amplitude criteria
         chs_above_thresh = buffer_power > stimPowerBoost;
@@ -357,8 +381,6 @@ for startIdx = 1:updateSize:(numSamples - chunkSize)
         last_ones(1:end-1,:) = last_ones(2:end,:);
         last_ones(end,:) = above_thresh;
 
-        
-
 
         % Decide if enough above thresh
         %detected_ad = sum(last_ones==1,1) > size(last_ones,1)*perc_above_thresh;
@@ -369,6 +391,9 @@ for startIdx = 1:updateSize:(numSamples - chunkSize)
         % make it zero if it's not an ad look channel (anything not on the stim electrode, excluding stim contacts!)
         chs_to_look = ad_look_chs(chLabels,altBipolarIndices,last_stim_chs,file_name);
         detected_ad(chs_to_look == 0) = 0;
+
+        % make zero if bad ch counter above limit
+        detected_ad(bad_ch_counter > n_bad) = 0;
 
         % if detection, add it
         if any(detected_ad,'all')      
@@ -514,7 +539,7 @@ end
 end
 
 if 0
-curr_labs = {'LI3'};
+curr_labs = {'LE6'};
 for i = 1:length(curr_labs)
     
     ch = strcmp(chLabels,curr_labs{i}); %RI3
