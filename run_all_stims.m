@@ -69,6 +69,30 @@ for i = 1:nfiles
         currT.Modifier = repmat(modifier,size(currT,1),1);
         currT.Run = repmat(r,size(currT,1),1);
         currT = currT(:, ['FileName', 'Modifier','Run', currT.Properties.VariableNames(1:end-3)]);
+
+        % get offset times for each AD detection
+        ad_rows = find(strcmp(currT.Type,'AD'));
+        for j = 1:length(ad_rows)
+            row = ad_rows(j);
+            file_name = currT.FileName{row};
+            ad_time = currT.OnTime(row);
+            
+            % get the most recent stim time
+            earlier_stim_rows = find(strcmp(currT.Type(1:row,'stim')));
+            last_stim_row = earlier_stim_rows(end);
+            if isempty(last_stim_row)
+                error('why no stim??')
+            end
+            stim_times = [currT.OnTime(last_stim_row) currT.OffTime(last_stim_row)];
+            ad_ch = currT.Channels{row};
+
+            % get the offset time
+            offset = get_precise_offset(file_name,ad_time,ad_ch,stim_times);
+
+            currT.OffTime(row) = offset;
+            
+        end
+
         T = [T;currT];
     end
 

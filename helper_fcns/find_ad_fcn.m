@@ -20,8 +20,8 @@ perc_above_thresh_stim = 0.5; % What percentage should exceed this power?
 % Ad detection parameters
 n_baseline_all = 100; % How many baselines to take
 n_baseline_keep = 50; % How many to keep (only keep first 50 because will assume weirdness right before official stim detection)
-stopLookingADSecs = 5; % Stop looking for ADs this long after stim offset
-ad_thresh = 40; % relative power above baseline threshold reduced 50->40 12/28
+stopLookingADSecs = 5; % Stop looking for ADs this long after stim offset 
+ad_thresh = 20; % relative power above baseline threshold reduced 50->20 12/28
 ad_too_high_thresh = 1e4; % if relative power above this, assume artifact
 coolDownLastSat = 2; % if ch saturated within this time period, don't look! % reduced 2->1 then back to 2
 secs_thresh = 2; % How long does it have the opportunity to get the num above thresh % increased 1->2

@@ -36,6 +36,8 @@ for i = 1:nfigs
         nexttile
         row = curr_rows(ia);
         ad_time = currT.OnTime(row);
+        ad_off_time = currT.OffTime(row);
+        rel_off = ad_off_time - ad_time;
         ad_ch = currT.Channels{row};
         ieeg_name = currT.FileName{row};
         data = download_ieeg_data(ieeg_name, login_name, pwfile, ...
@@ -62,6 +64,11 @@ for i = 1:nfigs
         
 
         plot(linspace(-surr_time,surr_time,length(biValues)),biValues)
+
+        hold on
+
+        plot([rel_off rel_off],get(gca,'ylim'),'r--')
+        xlim([-surr_time,surr_time])
         xlabel('seconds')
         title(sprintf('%1.1f %s',ad_time,ad_ch))
         

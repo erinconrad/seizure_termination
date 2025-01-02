@@ -1,7 +1,7 @@
 %% find HFS stim sessions
 
 %% Parameters
-rows = 16:59;
+rows = 45:64;
 
 %% Paths
 locations = seizure_termination_paths;
@@ -24,6 +24,7 @@ aT = table('Size',[0,3],...
 
 for i = 1:nfiles
     ieeg_name = filenames{i};
+    fprintf('\nTrying %s\n',ieeg_name)
 
     %% Get the annotations
     try
@@ -47,7 +48,7 @@ for i = 1:nfiles
     aT = [aT;curr_stimT];
 
     %% Save
-    writetable(aT,[results_folder,'poss_stim.csv'])
+    writetable(aT,[results_folder,'poss_stim3.csv'])
 end
 
 
