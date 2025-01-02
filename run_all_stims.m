@@ -78,7 +78,7 @@ for i = 1:nfiles
             ad_time = currT.OnTime(row);
             
             % get the most recent stim time
-            earlier_stim_rows = find(strcmp(currT.Type(1:row,'stim')));
+            earlier_stim_rows = find(strcmp(currT.Type(1:row),'stim'));
             last_stim_row = earlier_stim_rows(end);
             if isempty(last_stim_row)
                 error('why no stim??')
