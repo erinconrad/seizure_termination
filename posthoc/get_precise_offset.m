@@ -11,9 +11,9 @@ do_plot= 0;
 pre_time = 20;
 post_time = 30;
 baseline_rel_stim_on = [-2 -1]; % take the one second before stim onset to get baseline
-ad_thresh_lower = 10;
+ad_thresh_lower = 5;
 chunkDuration = 0.02;
-secsLower = 0.2;
+secsLower = 0.5;
 percLower = 0.8;
 
 %% File locs and set path
@@ -41,6 +41,10 @@ chLabels = decompose_labels(chLabels);
 nchs = length(chLabels);
 values = data.values;
 
+%% high pass filter
+zi = zeros(1,nchs);
+values = stevefilter(values,zi);
+
 %% Get the specific channel
 % get bipolar pairs
 [~,bipolarIndices,altBipolarIndices] = find_bipolar_pairs(chLabels,1:length(chLabels));
@@ -51,7 +55,7 @@ values = newValues;
 % restrict to ch
 ch_idx = strcmp(chLabels,ad_ch);
 values = values(:,ch_idx);
-values = values - median(values);
+values = values - nanmedian(values);
 
 %% Establish the baseline
 baseline_times = [stim_times(1) + baseline_rel_stim_on(1), stim_times(1) + baseline_rel_stim_on(2)];
@@ -96,13 +100,17 @@ else
     firstBelowIdx = find(enoughBelow==1);
     firstBelowIdx = firstBelowIdx(1);
     firstBelow = chunk_times(firstBelowIdx);
+
+    % realign to start
+    firstBelow = firstBelow - secsLower;
 end
 
 if do_plot
 
     figure
-    %tiledlayout(2,1)
-    %nexttile
+    set(gcf,'Position',[1 1 1400 600])
+    tiledlayout(2,1)
+    nexttile
     plot(linspace(start_time,end_time,length(values)),values,'k')
     hold on
     plot([ad_time ad_time],get(gca,'ylim'),'g--')
@@ -111,8 +119,12 @@ if do_plot
     plot([baseline_times(2) baseline_times(2)],get(gca,'ylim'),'b--')
     title(sprintf('%s %s ad times %1.1f %1.1f',file_name,ad_ch,ad_time,firstBelow))
 
-    %nexttile
-    %plot(chunk_times,chunks)
+    nexttile
+    plot(chunk_times,chunks)
+    hold on
+    plot([ad_time ad_time],get(gca,'ylim'),'g--')
+    plot([firstBelow firstBelow],get(gca,'ylim'),'r--')
+    pause
 
 end
 
@@ -145,4 +157,10 @@ for i = 1:numel(contacts)
 end
 
 
+end
+
+function [xout,zf] = stevefilter(xin,zi)
+    alpha = 0.90;
+    [xf,zf] = filter(1-alpha,[1, -alpha],xin,zi);
+    xout = xin - xf;
 end

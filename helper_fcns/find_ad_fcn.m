@@ -3,7 +3,7 @@ function T = find_ad_fcn(file_name,start_time,end_time)
 %% Parameters
 
 % Display option parameters
-do_plots = 0;
+do_plots = 1;
 
 % Time chunk parameters
 chunkDuration = 0.02; % how long to pull (s)
@@ -706,7 +706,7 @@ end
 end
 
 function [xout,zf] = stevefilter(xin,zi)
-    alpha = 0.99;
+    alpha = 0.90; % changed from 0.99 to 0.90 1/3
     [xf,zf] = filter(1-alpha,[1, -alpha],xin,zi);
     xout = xin - xf;
 end
