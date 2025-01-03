@@ -10,7 +10,7 @@ locations = seizure_termination_paths;
 addpath(genpath(locations.annotation_grabber_folder))
 data_folder = [locations.main_folder,'data/'];
 results_folder = [locations.main_folder,'results/'];
-out_folder = [results_folder,'detections/'];
+out_folder = [results_folder,'detections_alt/'];
 
 % add script folder to path
 scripts_folder = locations.script_folder;
