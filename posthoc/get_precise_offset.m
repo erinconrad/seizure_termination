@@ -5,7 +5,7 @@ The purpose of this function is to take the ieeg filename and time of an
 afterdischarge detection and to get the precise offset time
 %}
 
-do_plot= 1;
+do_plot= 0;
 
 %% Parameters
 pre_time = 20;
