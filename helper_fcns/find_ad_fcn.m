@@ -706,7 +706,7 @@ end
 end
 
 function [xout,zf] = stevefilter(xin,zi)
-    alpha = 0.90; % changed from 0.99 to 0.90 1/3
+    alpha = 0.99; 
     [xf,zf] = filter(1-alpha,[1, -alpha],xin,zi);
     xout = xin - xf;
 end

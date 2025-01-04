@@ -1,20 +1,26 @@
-function firstBelow = get_precise_offset(file_name,ad_time,ad_ch,stim_times)
+function [offsetTime,onsetTime] = get_precise_offset(file_name,ad_time,ad_ch,stim_times)
 
 %{
 The purpose of this function is to take the ieeg filename and time of an
 afterdischarge detection and to get the precise offset time
 %}
 
-do_plot= 0;
+do_plot= 1;
 
 %% Parameters
 pre_time = 20;
 post_time = 30;
 baseline_rel_stim_on = [-2 -1]; % take the one second before stim onset to get baseline
-ad_thresh_lower = 5;
 chunkDuration = 0.02;
+ad_thresh_lower = 5;
 secsLower = 0.5;
 percLower = 0.8;
+
+ad_thresh_higher = 10;
+secsHigher = 0.1;
+percHigher = 0.8;
+
+
 
 %% File locs and set path
 locations = seizure_termination_paths; % get paths
@@ -96,34 +102,81 @@ end
 
 if sum(enoughBelow) == 0
     firstBelow = nan;
+    offsetTime = firstBelow;
 else
     firstBelowIdx = find(enoughBelow==1);
     firstBelowIdx = firstBelowIdx(1);
     firstBelow = chunk_times(firstBelowIdx);
 
     % realign to start
-    firstBelow = firstBelow - secsLower;
+    offsetTime = firstBelow - secsLower;
 end
+
+%% Also try to get precise onset
+
+% Power in 20 ms chunks starting at stim offset
+on_times = [stim_times(2),end_time];
+on_times_rel_start = on_times - start_time;
+on_idx = round(on_times_rel_start(1)*fs):round(on_times_rel_start(2)*fs);
+values_on = values(on_idx);
+n_on_chunks = floor(length(values_on)/chunkDurIdx);
+on_chunk_times = nan(n_on_chunks,1);
+on_chunks = nan(n_on_chunks,1);
+for i = 1:n_on_chunks
+    idx = chunkDurIdx*(i-1)+1:chunkDurIdx*i;
+    on_chunks(i) = sum(values_on(idx).^2)/avg_bl_power;
+    on_chunk_times(i) = stim_times(2) + (i-1)*chunkDuration;
+end
+
+aboveThresh = on_chunks > ad_thresh_higher;
+
+% Find point at which go above thresh for enough percentage of enough time
+numAbove = round(secsHigher/chunkDuration);
+enoughAbove = zeros(n_on_chunks,1);
+for i = numAbove+1:n_on_chunks
+    enoughAbove(i) = sum(aboveThresh(i-numAbove:i))/length(aboveThresh(i-numAbove:i)) > percHigher;
+end
+
+if sum(enoughAbove) == 0
+    firstAbove = nan;
+    onsetTime = firstAbove;
+else
+    firstAboveIdx = find(enoughAbove==1);
+    firstAboveIdx = firstAboveIdx(1);
+    firstAbove = on_chunk_times(firstAboveIdx);
+
+    % realign to start
+    onsetTime = firstAbove - secsHigher;
+end
+
 
 if do_plot
 
     figure
-    set(gcf,'Position',[1 1 1400 600])
-    tiledlayout(2,1)
+    set(gcf,'Position',[1 1 1400 1000])
+    tiledlayout(3,1)
     nexttile
     plot(linspace(start_time,end_time,length(values)),values,'k')
     hold on
     plot([ad_time ad_time],get(gca,'ylim'),'g--')
-    plot([firstBelow firstBelow],get(gca,'ylim'),'r--')
+    plot([onsetTime onsetTime],get(gca,'ylim'),'c--')
+    plot([offsetTime offsetTime],get(gca,'ylim'),'r--')
     plot([baseline_times(1) baseline_times(1)],get(gca,'ylim'),'b--')
     plot([baseline_times(2) baseline_times(2)],get(gca,'ylim'),'b--')
-    title(sprintf('%s %s ad times %1.1f %1.1f',file_name,ad_ch,ad_time,firstBelow))
+    title(sprintf('%s %s ad times %1.1f %1.1f',file_name,ad_ch,ad_time,offsetTime))
 
     nexttile
     plot(chunk_times,chunks)
     hold on
     plot([ad_time ad_time],get(gca,'ylim'),'g--')
-    plot([firstBelow firstBelow],get(gca,'ylim'),'r--')
+    plot([offsetTime offsetTime],get(gca,'ylim'),'r--')
+    
+    nexttile
+    plot(on_chunk_times,on_chunks)
+    hold on
+    plot([ad_time ad_time],get(gca,'ylim'),'g--')
+    plot([onsetTime onsetTime],get(gca,'ylim'),'b--')
+
     pause
 
 end
