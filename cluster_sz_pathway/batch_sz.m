@@ -3,8 +3,8 @@ window_duration = 0.1;  % 100 ms
 threshold = 3e3;        % Adjust as needed
 avg_window_sec = 2;     % Moving average window
 filename = 'HUP247_phaseII';
-start_time = 59602.5-100;  % Start of your analysis interval
-end_time = 76544.3+100;    % End of your analysis interval (example)
+start_time = 8110.08-100;  % Start of your analysis interval
+end_time = 285853.48+100;    % End of your analysis interval (example)
 
 chunk_duration = 5 * 60; % 5 minutes in seconds
 cooldown_sec = 120;       % 60-second cooldown after a detection
