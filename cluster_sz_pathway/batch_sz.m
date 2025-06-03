@@ -1,6 +1,6 @@
 %% Parameters
 window_duration = 0.1;  % 100 ms
-threshold = 2e3;        % Adjust as needed
+threshold = 3e3;        % Adjust as needed
 avg_window_sec = 2;     % Moving average window
 filename = 'HUP247_phaseII';
 start_time = 59602.5-100;  % Start of your analysis interval
