@@ -30,6 +30,7 @@ window_duration = 0.1;       % 100 ms
 avg_window_sec  = 5;         % moving‑average window
 chunk_duration  = 5*60;      % 5 min chunks
 cooldown_sec    = 180;       % cooldown
+last_detection_time = -Inf;
 
 %% 1. Paths / env (unchanged) ---------------------------------------------
 locations = seizure_termination_paths;
@@ -144,18 +145,20 @@ function detection_times = run_detector_on_interval(filename, start_time, end_ti
                 line_hist = line_hist(end-avg_window_samples+1:end);
             end
 
+            abs_time = current_time + (start_idx / fs);
             if ~seizure_detected && numel(line_hist) == avg_window_samples
-                if mean(line_hist) > threshold
+                if mean(line_hist) > threshold && (abs_time - last_detection_time >= cooldown_sec)
                     seizure_detected = true;
-                    seizure_time = current_time + (start_idx / fs);
-                    detection_times(end+1,1) = seizure_time; %#ok<AGROW>
-                    fprintf('    Detected at %.2f s (abs)\n', seizure_time);
-
-                    start_idx = start_idx + cooldown_sec * fs;  % cooldown
+                    detection_times(end+1,1) = abs_time; %#ok<AGROW>
+                    fprintf('    Detected at %.2f s (abs)\n', abs_time);
+            
+                    last_detection_time = abs_time;
+                    start_idx = start_idx + cooldown_sec * fs;  % skip ahead
                     line_hist = [];  seizure_detected = false;
                     continue
                 end
             end
+
             start_idx = start_idx + window_size;
         end
         current_time = chunk_end_time;  % next chunk
