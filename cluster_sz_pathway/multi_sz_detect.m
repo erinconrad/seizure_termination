@@ -29,7 +29,7 @@ fileSpecs = struct( ...
 window_duration = 0.1;       % 100 ms
 avg_window_sec  = 5;         % moving‑average window
 chunk_duration  = 5*60;      % 5 min chunks
-cooldown_sec    = 120;       % cooldown
+cooldown_sec    = 180;       % cooldown
 
 %% 1. Paths / env (unchanged) ---------------------------------------------
 locations = seizure_termination_paths;
@@ -81,7 +81,7 @@ for f = 1:numel(fileSpecs)
     sigma_ll = std(ll_vals, 'omitnan');
     threshold = mu_ll + 4 * sigma_ll;    % Tune the multiplier if needed
 
-    fprintf('Computed threshold = %.1f (mean %.1f + 5×std %.1f)\n', threshold, mu_ll, sigma_ll);
+    fprintf('Computed threshold = %.1f (mean %.1f + 4×std %.1f)\n', threshold, mu_ll, sigma_ll);
 
     %% Detect seizures in intervals
     detection_times_all = [];

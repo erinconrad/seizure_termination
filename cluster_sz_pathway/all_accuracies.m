@@ -2,7 +2,7 @@
 %% CONFIG -----------------------------------------------------------------
 seizureSpreadsheet = '../../results/cluster/all_seizure_times.csv';   % includes all true seizure times
 detectFolder       = '../../results/cluster/';                        % where detection CSVs live
-matchWindow        = 40;   % seconds (±) for a valid detection
+matchWindow        = 60;   % seconds (±) for a valid detection
 timeColTrue        = 'start';   % column in spreadsheet with seizure time
 filenameCol        = 'IEEGname'; % column with filenames (match detection CSVs)
 
