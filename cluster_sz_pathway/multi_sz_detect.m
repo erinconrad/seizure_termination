@@ -1,5 +1,6 @@
 %% measure_accuracy_multi.m
 % Run line‑length detector over many files/intervals, each with its own threshold
+% Updated avg_window_sec from 2->5
 
 %% 0. Config: list the files, intervals, and thresholds --------------------
 % Each row: filename, cell array of [start end] rows, threshold
