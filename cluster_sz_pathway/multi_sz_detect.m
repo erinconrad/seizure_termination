@@ -14,7 +14,7 @@ T.bipolar_ch2 = string(T.bipolar_ch2);
 all_filenames = unique(T.filename);
 
 window_duration = 0.1;       % 100 ms
-avg_window_sec  = 5;         % moving-average window
+avg_window_sec  = 7;         % moving-average window
 chunk_duration  = 5*60;      % 5 min chunks
 cooldown_sec    = 180;       % cooldown period in seconds
 rel_threshold   = 4;         % # SDs above mean to call sz
