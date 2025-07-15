@@ -2,7 +2,7 @@
 % Run line-length detector using intervals and channels from an Excel spreadsheet
 
 %% 0. Load spreadsheet -----------------------------------------------------
-xls_file = 'cluster_sz_data.xlsx';  
+xls_file = '../../data/cluster_sz_data.xlsx';  
 T = readtable(xls_file);
 
 % Ensure filename column is categorical -> string
