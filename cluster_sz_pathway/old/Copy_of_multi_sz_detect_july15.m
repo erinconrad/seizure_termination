@@ -1,23 +1,21 @@
-%% measure_accuracy_multi_from_xlsx.m
-% Run line-length detector using intervals and channels from an Excel spreadsheet
+%% measure_accuracy_multi.m
+% Run line-length detector over many files/intervals, each with its own threshold
 
-%% 0. Load spreadsheet -----------------------------------------------------
-xls_file = 'cluster_sz_data.xlsx';  
-T = readtable(xls_file);
-
-% Ensure filename column is categorical -> string
-T.filename = string(T.filename);
-T.bipolar_ch1 = string(T.bipolar_ch1);
-T.bipolar_ch2 = string(T.bipolar_ch2);
-
-% Unique filenames to loop through
-all_filenames = unique(T.filename);
+%% 0. Config: list the files, intervals, and thresholds --------------------
+fileSpecs = struct( ...
+    'filename',  {'HUP259_phaseII',...
+        'HUP281_phaseII'},...
+    'intervals', {[586042.29-400,776658.81+100],...
+                   [124443.29-400, 309350.3888+100]},...
+    'sz_ch',     {{'LQ01','LQ02'},...
+        {'RB01','RB02'}}...
+);
 
 window_duration = 0.1;       % 100 ms
 avg_window_sec  = 5;         % moving-average window
 chunk_duration  = 5*60;      % 5 min chunks
 cooldown_sec    = 180;       % cooldown period in seconds
-rel_threshold   = 3;         % # SDs above mean to call sz
+rel_threshold   = 3;         % # SDs above mean to call sz - Erin reduced this from 4 7/15
 
 %% 1. Paths / env (unchanged) ---------------------------------------------
 locations = seizure_termination_paths;
@@ -31,18 +29,17 @@ addpath(genpath(locations.ieeg_folder));
 pwfile     = locations.ieeg_pw_file;
 login_name = locations.ieeg_login;
 
-%% 2. Loop over each file --------------------------------------------------
-for f = 1:numel(all_filenames)
-    filename = all_filenames(f);
-    rows = T(strcmp(T.filename, filename), :);  % all rows for this file
+%% 2. Loop over files ------------------------------------------------------
+for f = 1:numel(fileSpecs)
+    spec        = fileSpecs(f);
+    filename    = spec.filename;
+    intervals   = spec.intervals;
+    szPair      = spec.sz_ch;
 
-    intervals = [rows.start_time, rows.end_time];
-    ch1 = rows.bipolar_ch1;
-    ch2 = rows.bipolar_ch2;
-
-    % Estimate threshold using first interval
+    %% Estimate threshold from first 5 minutes
     baseline_start = intervals(1,1);
     baseline_end   = baseline_start + 300;
+
     fprintf('\n=== File %s ===\n', filename);
     fprintf('Estimating baseline from %.2f–%.2f s...\n', baseline_start, baseline_end);
 
@@ -50,7 +47,7 @@ for f = 1:numel(all_filenames)
     fs        = data.fs;
     values    = data.values;
     chLabels  = data.chLabels(:,1);
-    sz_values = values(:,strcmp(chLabels, ch1(1))) - values(:,strcmp(chLabels, ch2(1)));
+    sz_values = values(:,strcmp(chLabels,szPair{1})) - values(:,strcmp(chLabels,szPair{2}));
 
     window_size = round(fs * window_duration);
     n_windows   = floor(size(sz_values,1) / window_size);
@@ -67,18 +64,18 @@ for f = 1:numel(all_filenames)
     mu_ll  = mean(ll_vals, 'omitnan');
     sigma_ll = std(ll_vals, 'omitnan');
     threshold = mu_ll + rel_threshold * sigma_ll;
-    fprintf('Computed threshold = %.1f (mean %.1f + %.1f×std %.1f)\n', ...
-        threshold, mu_ll, rel_threshold, sigma_ll);
 
-    %% Detect seizures in each interval
+    fprintf('Computed threshold = %.1f (mean %.1f + 4×std %.1f)\n', threshold, mu_ll, sigma_ll);
+
+    %% Detect seizures in intervals
     detection_times_all = [];
-    for k = 1:height(rows)
-        start_time = rows.start_time(k);
-        end_time   = rows.end_time(k);
-        szPair     = {ch1(k), ch2(k)};
-        fprintf(' Interval %d of %d: %.2f – %.2f s (Channels: %s - %s)\n', ...
-                k, height(rows), start_time, end_time, szPair{1}, szPair{2});
 
+    for k = 1:size(intervals,1)
+        start_time = intervals(k,1);
+        end_time   = intervals(k,2);
+        fprintf(' Interval %d of %d: %.2f – %.2f s\n', ...
+                k, size(intervals,1), start_time, end_time);
+        
         det_times = run_detector_on_interval(filename, start_time, end_time, ...
                        threshold, window_duration, avg_window_sec, ...
                        chunk_duration, cooldown_sec, szPair, login_name, pwfile);
@@ -92,6 +89,7 @@ for f = 1:numel(all_filenames)
     fprintf('  ➜ Saved %d detections to %s\n', numel(detection_times_all), out_csv);
 end
 
+%% ------------------------------------------------------------------------
 function detection_times = run_detector_on_interval(filename, start_time, end_time, ...
                          threshold, window_duration, avg_window_sec, ...
                          chunk_duration, cooldown_sec, sz_ch, login_name, pwfile)
