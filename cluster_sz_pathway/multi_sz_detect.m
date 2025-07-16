@@ -111,22 +111,15 @@ function detection_times = run_detector_on_interval(filename, start_time, end_ti
     while current_time < end_time
         chunk_end_time = min(current_time + chunk_duration, end_time);
     
-        % Request garbage collection every 5 chunks
+        % Request garbage collection every 100 chunks
         chunk_counter = chunk_counter + 1;
-        if mod(chunk_counter, 5) == 0
+        if mod(chunk_counter, 100) == 0
             fprintf('🧹 Forcing Java garbage collection...\n');
             java.lang.System.gc();
         end
     
-        % Try/catch to avoid crash on OOM
-        try
-            data  = download_ieeg_data_sz(filename, login_name, pwfile, ...
+        data  = download_ieeg_data_sz(filename, login_name, pwfile, ...
                                           [current_time, chunk_end_time], 1);
-        catch ME
-            warning("❌ Failed to download %.0f–%.0f for %s: %s", ...
-                     current_time, chunk_end_time, filename, ME.message);
-            return;  % Skip this interval or chunk
-        end
         fs        = data.fs;
         values    = data.values;
         chLabels  = data.chLabels(:,1);
