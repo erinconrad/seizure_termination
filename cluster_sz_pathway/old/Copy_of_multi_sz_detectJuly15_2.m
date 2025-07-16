@@ -34,13 +34,6 @@ login_name = locations.ieeg_login;
 %% 2. Loop over each file --------------------------------------------------
 for f = 1:numel(all_filenames)
     filename = all_filenames(f);
-    out_csv = fullfile(out_folder, sprintf('%s_detections.csv', filename));
-
-    % Skip this file if already completed
-    if isfile(out_csv)
-        fprintf('\n✅ Skipping %s (already completed)\n', filename);
-        continue
-    end
     rows = T(strcmp(T.filename, filename), :);  % all rows for this file
 
     intervals = [rows.start_time, rows.end_time];
