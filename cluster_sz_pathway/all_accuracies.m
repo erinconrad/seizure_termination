@@ -2,7 +2,7 @@
 % Evaluate detection accuracy using detection results and intervals from spreadsheet
 
 %% CONFIG -----------------------------------------------------------------
-seizureSpreadsheet = '../../results/cluster/all_seizure_times.csv';   % ground truth seizure times
+seizureSpreadsheet = '../../results/all_seizure_times.csv';   % ground truth seizure times
 detectFolder       = '../../results/cluster/';                        % detection results
 intervalsXlsx      = '../../data/cluster_sz_data.xlsx';                          % intervals and channels
 matchWindow        = 120;   % seconds (±) for a valid detection
@@ -37,7 +37,7 @@ for f = 1:numel(uniqueFiles)
     seizTimes  = sort(allSeiz(allSeiz >= interval(1) & allSeiz <= interval(2)));
 
     % Load detections
-    detFile = fullfile(detectFolder, [fname '_detections.csv']);
+    detFile = fullfile(detectFolder, fname + '_detections.csv');
     if ~isfile(detFile)
         fprintf('  ⚠ Detection file not found: %s\n', detFile);
         continue
@@ -96,7 +96,7 @@ for f = 1:numel(uniqueFiles)
     %% Save false positives
     falsePosTimes = detTimes(~usedDetIdx);
     falsePosTable = table(falsePosTimes, 'VariableNames', {'FalseDetection_sec'});
-    fp_outfile = fullfile(detectFolder, [fname '_false_positives.csv']);
+    fp_outfile = fullfile(detectFolder, fname + '_false_positives.csv');
     writetable(falsePosTable, fp_outfile);
     fprintf('  ➜ Saved %d false positives to %s\n', numel(falsePosTimes), fp_outfile);
 
@@ -111,7 +111,7 @@ for f = 1:numel(uniqueFiles)
     end
     missedSeizures = seizTimes(~matchedSeizureIdx);
     missedTable = table(missedSeizures, 'VariableNames', {'MissedSeizure_sec'});
-    missed_outfile = fullfile(detectFolder, [fname '_missed_seizures.csv']);
+    missed_outfile = fullfile(detectFolder, fname + '_missed_seizures.csv');
     writetable(missedTable, missed_outfile);
     fprintf('  ➜ Saved %d missed seizures to %s\n', numel(missedSeizures), missed_outfile);
 end

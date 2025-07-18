@@ -17,7 +17,9 @@ window_duration = 0.1;       % 100 ms
 avg_window_sec  = 7;         % moving-average window
 chunk_duration  = 5*60;      % 5 min chunks
 cooldown_sec    = 180;       % cooldown period in seconds
-rel_threshold   = 4;         % # SDs above mean to call sz
+rel_threshold   = 5;         % # SDs above mean to call sz
+notchQ          = 10;        % notch filter
+f0              = 60;        % notch filter
 
 %% 1. Paths / env (unchanged) ---------------------------------------------
 locations = seizure_termination_paths;
@@ -59,6 +61,15 @@ for f = 1:numel(all_filenames)
     chLabels  = data.chLabels(:,1);
     sz_values = values(:,strcmp(chLabels, ch1(1))) - values(:,strcmp(chLabels, ch2(1)));
 
+
+    % Design notch filter
+    wo = f0 / (fs/2);     % Normalize frequency
+    bw = wo / notchQ;          % Bandwidth
+    [b, a] = iirnotch(wo, bw);  % Design notch filter
+
+    % Apply notch to baseline
+    sz_values = filtfilt(b, a, sz_values);
+
     window_size = round(fs * window_duration);
     n_windows   = floor(size(sz_values,1) / window_size);
     ll_vals     = nan(n_windows, 1);
@@ -88,7 +99,8 @@ for f = 1:numel(all_filenames)
 
         det_times = run_detector_on_interval(filename, start_time, end_time, ...
                        threshold, window_duration, avg_window_sec, ...
-                       chunk_duration, cooldown_sec, szPair, login_name, pwfile);
+                       chunk_duration, cooldown_sec, szPair, login_name, pwfile,...
+                       b,a);
         detection_times_all = [detection_times_all; det_times]; %#ok<AGROW>
     end
 
@@ -101,7 +113,8 @@ end
 
 function detection_times = run_detector_on_interval(filename, start_time, end_time, ...
                          threshold, window_duration, avg_window_sec, ...
-                         chunk_duration, cooldown_sec, sz_ch, login_name, pwfile)
+                         chunk_duration, cooldown_sec, sz_ch, login_name, pwfile,...
+                         b,a)
 
     detection_times = [];
     current_time = start_time;
@@ -125,6 +138,8 @@ function detection_times = run_detector_on_interval(filename, start_time, end_ti
         chLabels  = data.chLabels(:,1);
         sz_values = values(:,strcmp(chLabels,sz_ch{1})) ...
                   - values(:,strcmp(chLabels,sz_ch{2}));
+
+        sz_values = filtfilt(b, a, sz_values); % apply notch
 
         window_size        = round(fs * window_duration);
         avg_window_samples = avg_window_sec / window_duration;
