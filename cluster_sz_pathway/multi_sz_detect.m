@@ -140,7 +140,10 @@ function detection_times = run_detector_on_interval(filename, start_time, end_ti
                   - values(:,strcmp(chLabels,sz_ch{2}));
 
         sz_values(isnan(sz_values)) = nanmean(sz_values); % bug wiht nans
-        sz_values = filtfilt(b, a, sz_values); % apply notch
+
+        if ~any(isnan(sz_values))
+            sz_values = filtfilt(b, a, sz_values); % apply notch
+        end
         
 
         window_size        = round(fs * window_duration);
