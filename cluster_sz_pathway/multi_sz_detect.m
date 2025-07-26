@@ -17,7 +17,7 @@ window_duration = 0.5;       % -> Erin changed 100 to 500 ms 7/25
 avg_window_sec  = 5;         % moving-average window -> Erin changed from 7 to 5 s 7/25
 chunk_duration  = 5*60;      % 5 min chunks
 cooldown_sec    = 180;       % cooldown period in seconds
-rel_threshold   = 5;         % # SDs above mean to call sz
+rel_threshold   = 7;         % # SDs above mean to call sz
 notchQ          = 10;        % notch filter
 f0              = 60;        % notch filter
 
