@@ -20,8 +20,8 @@ cluster_sz_data_file = '../../data/cluster_sz_data.xlsx';
 T = readtable(cluster_sz_data_file);
 
 % ==== INPUT: CSVs ====
-allDetectionsCSV    = '../../results/cluster/HUP192_phaseII_detections.csv';
-falsePositivesCSV   = '../../results/cluster/HUP192_phaseII_false_positives.csv';
+allDetectionsCSV    = '../../results/cluster/HUP199_phaseII_detections.csv';
+falsePositivesCSV   = '../../results/cluster/HUP199_phaseII_false_positives.csv';
 
 allDetectionsTable  = readtable(allDetectionsCSV);
 falsePositivesTable = readtable(falsePositivesCSV);
