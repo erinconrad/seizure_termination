@@ -13,11 +13,11 @@ T.bipolar_ch2 = string(T.bipolar_ch2);
 % Unique filenames to loop through
 all_filenames = unique(T.filename);
 
-window_duration = 0.5;       % -> Erin changed 100 to 500 ms 7/25
-avg_window_sec  = 5;         % moving-average window -> Erin changed from 7 to 5 s 7/25
+window_duration = 1;       % -> Erin changed 500 ms to 1 s 8/9
+avg_window_sec  = 3;         % moving-average window -> Erin changed from 5 to 3 s 8/9
 chunk_duration  = 5*60;      % 5 min chunks
 cooldown_sec    = 180;       % cooldown period in seconds
-rel_threshold   = 13;         % # SDs above mean to call sz
+rel_threshold   = 10;         % # SDs above mean to call sz -> Erin changed from 13 to 10 8/9
 notchQ          = 10;        % notch filter
 f0              = 60;        % notch filter
 
