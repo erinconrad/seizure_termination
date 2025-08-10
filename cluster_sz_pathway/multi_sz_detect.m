@@ -13,7 +13,7 @@ T.bipolar_ch2 = string(T.bipolar_ch2);
 % Unique filenames to loop through
 all_filenames = unique(T.filename);
 
-window_duration = 3;       % -> Erin changed 1 s to 3 s 8/10
+window_duration = 2;       % -> Erin changed 1 s to 2 s 8/10
 avg_window_sec  = 3;         % moving-average window -> Erin changed from 5 to 3 s 8/9
 chunk_duration  = 5*60;      % 5 min chunks
 cooldown_sec    = 180;       % cooldown period in seconds
