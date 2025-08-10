@@ -1,4 +1,6 @@
 %% plot_detections (with missed seizures first)
+ieeg_name = 'HUP184_phaseII';
+
 
 %% 1. Paths / env ---------------------------------------------
 locations = seizure_termination_paths;
@@ -14,7 +16,7 @@ login_name = locations.ieeg_login;
 
 notchQ          = 10;
 f0              = 60;
-winSec = 1;   
+winSec = 2;   
 lowBand  = [0 20];
 highBand = [30 100];   
 % -------------------------------------------------------------
@@ -24,9 +26,9 @@ cluster_sz_data_file = '../../data/cluster_sz_data.xlsx';
 T = readtable(cluster_sz_data_file);
 
 % ==== INPUT: CSVs ====
-allDetectionsCSV    = '../../results/cluster/HUP199_phaseII_detections.csv';
-falsePositivesCSV   = '../../results/cluster/HUP199_phaseII_false_positives.csv';
-missedSeizuresCSV   = '../../results/cluster/HUP199_phaseII_missed_seizures.csv';
+allDetectionsCSV    = sprintf('../../results/cluster/%s_detections.csv',ieeg_name);
+falsePositivesCSV   = sprintf('../../results/cluster/%s_false_positives.csv',ieeg_name);
+missedSeizuresCSV   = sprintf('../../results/cluster/%s_missed_seizures.csv',ieeg_name);
 
 allDetectionsTable  = readtable(allDetectionsCSV);
 falsePositivesTable = readtable(falsePositivesCSV);
