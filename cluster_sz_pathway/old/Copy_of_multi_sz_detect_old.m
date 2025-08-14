@@ -113,7 +113,7 @@ end
 
 function detection_times = run_detector_on_interval(filename, start_time, end_time, ...
                          threshold, window_duration, avg_window_sec, ...
-                         chunk_duration, cooldown_sec, sz_ch, login_name, pwfile, ...
+                         chunk_duration, cooldown_sec, sz_ch, login_name, pwfile,...
                          b,a)
 
     detection_times = [];
@@ -123,72 +123,58 @@ function detection_times = run_detector_on_interval(filename, start_time, end_ti
 
     while current_time < end_time
         chunk_end_time = min(current_time + chunk_duration, end_time);
-
+    
         % Request garbage collection every 100 chunks
         chunk_counter = chunk_counter + 1;
         if mod(chunk_counter, 100) == 0
             fprintf('🧹 Forcing Java garbage collection...\n');
             java.lang.System.gc();
         end
-
+    
         data  = download_ieeg_data_sz(filename, login_name, pwfile, ...
-                                      [current_time, chunk_end_time], 1);
+                                          [current_time, chunk_end_time], 1);
         fs        = data.fs;
         values    = data.values;
         chLabels  = data.chLabels(:,1);
         sz_values = values(:,strcmp(chLabels,sz_ch{1})) ...
                   - values(:,strcmp(chLabels,sz_ch{2}));
 
-        % Handle NaNs and apply notch
-        sz_values(isnan(sz_values)) = nanmean(sz_values);
-        if ~any(isnan(sz_values))
-            sz_values = filtfilt(b, a, sz_values);
-        end
+        sz_values(isnan(sz_values)) = nanmean(sz_values); % bug wiht nans
 
-        window_size         = round(fs * window_duration);         % samples in 1s
-        n_needed            = round(avg_window_sec / window_duration); % should be 4
-        nsamples            = size(values,1);
-        line_hist           = [];  % store last n_needed line lengths
-        start_idx           = 1;
+        if ~any(isnan(sz_values))
+            sz_values = filtfilt(b, a, sz_values); % apply notch
+        end
+        
+
+        window_size        = round(fs * window_duration);
+        avg_window_samples = avg_window_sec / window_duration;
+        nsamples           = size(values,1);
+        line_hist          = [];
+        start_idx          = 1;
 
         while start_idx <= (nsamples - window_size + 1)
-            % Compute line length for current 1s window
             segment   = sz_values(start_idx:start_idx+window_size-1);
             line_len  = sum(abs(diff(segment)));
             line_hist = [line_hist, line_len]; %#ok<AGROW>
 
-            % Keep only the last n_needed windows
-            if numel(line_hist) > n_needed
-                line_hist = line_hist(end-n_needed+1:end);
+            if numel(line_hist) > avg_window_samples
+                line_hist = line_hist(end-avg_window_samples+1:end);
             end
 
-            % Absolute time aligned to the start of the *current* 1s window
-            abs_time_current_win = current_time + (start_idx / fs);
+            abs_time = current_time + (start_idx / fs);
+            if numel(line_hist) == avg_window_samples
+                if mean(line_hist) > threshold && (abs_time - last_detection_time >= cooldown_sec)
+                    detection_times(end+1,1) = abs_time; %#ok<AGROW>
+                    fprintf('    Detected at %.2f s (abs)\n', abs_time);
+                    last_detection_time = abs_time;
 
-            % Detection rule: all 1s windows in the last 4s must exceed threshold
-            if numel(line_hist) == n_needed
-                if all(line_hist > threshold)
-                    % Timestamp at the start of the 4-window block
-                    first_block_start_idx = start_idx - (n_needed-1)*window_size;
-                    detection_time = current_time + (first_block_start_idx / fs);
-
-                    if (detection_time - last_detection_time) >= cooldown_sec
-                        detection_times(end+1,1) = detection_time; %#ok<AGROW>
-                        fprintf('    Detected at %.2f s (start of 4-window block)\n', detection_time);
-                        last_detection_time = detection_time;
-
-                        % Jump ahead by cooldown to avoid re-detecting the same event
-                        start_idx = start_idx + round(cooldown_sec * fs);
-                        line_hist = [];
-                        continue
-                    end
+                    start_idx = start_idx + round(cooldown_sec * fs);
+                    line_hist = [];
+                    continue
                 end
             end
-
-            % Advance by one non-overlapping 1s window
             start_idx = start_idx + window_size;
         end
-
         current_time = chunk_end_time;
     end
 end

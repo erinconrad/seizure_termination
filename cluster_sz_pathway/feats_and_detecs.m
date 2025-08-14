@@ -9,14 +9,14 @@ addpath(genpath(locations.script_folder));
 addpath(genpath(locations.ieeg_folder));
 data_folder    = [locations.main_folder, 'data/'];
 results_folder = [locations.main_folder, 'results/'];
-out_folder     = [results_folder, 'cluster/'];
+out_folder     = [results_folder, 'cluster_august112025/'];
 
 pwfile     = locations.ieeg_pw_file;
 login_name = locations.ieeg_login;
 
 notchQ          = 10;
 f0              = 60;
-winSec = 2;   
+winSec = 1;   
 lowBand  = [0 20];
 highBand = [30 100];   
 % -------------------------------------------------------------
@@ -26,9 +26,9 @@ cluster_sz_data_file = '../../data/cluster_sz_data.xlsx';
 T = readtable(cluster_sz_data_file);
 
 % ==== INPUT: CSVs ====
-allDetectionsCSV    = sprintf('../../results/cluster/%s_detections.csv',ieeg_name);
-falsePositivesCSV   = sprintf('../../results/cluster/%s_false_positives.csv',ieeg_name);
-missedSeizuresCSV   = sprintf('../../results/cluster/%s_missed_seizures.csv',ieeg_name);
+allDetectionsCSV    = sprintf('%s%s_detections.csv',out_folder,ieeg_name);
+falsePositivesCSV   = sprintf('%s%s_false_positives.csv',out_folder,ieeg_name);
+missedSeizuresCSV   = sprintf('%s%s_missed_seizures.csv',out_folder,ieeg_name);
 
 allDetectionsTable  = readtable(allDetectionsCSV);
 falsePositivesTable = readtable(falsePositivesCSV);
