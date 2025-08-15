@@ -18,8 +18,8 @@ avg_window_sec  = 4;         % moving-average window -
 chunk_duration  = 5*60;      % 5 min chunks
 cooldown_sec    = 180;       % cooldown period in seconds
 rel_threshold   = 10;         % # SDs above mean to call sz -> Erin changed from 13 to 10 8/9
-f0 = 60; NOTCH_Q = 35; harmonics = [1 2];  % 60 & 120
-LPF_CUTOFF = 50;  % try 50 first
+notchQ          = 10;        % notch filter
+f0              = 60;        % notch filter
 
 %% 1. Paths / env (unchanged) ---------------------------------------------
 locations = seizure_termination_paths;
@@ -63,28 +63,12 @@ for f = 1:numel(all_filenames)
 
 
     % Design notch filter
-    sos_notch = [];
-    g_notch = 1;
-    for h = harmonics
-        fr = h*f0;
-        if fr < fs/2-1
-            wo = fr/(fs/2);
-            bw = wo/NOTCH_Q;
-            [b1,a1] = iirnotch(wo,bw);
-            [sos, g] = tf2sos(b1,a1);
-            sos_notch = [sos_notch; sos]; %#ok<AGROW>
-            g_notch = g_notch * g;
-        end
-    end
+    wo = f0 / (fs/2);     % Normalize frequency
+    bw = wo / notchQ;          % Bandwidth
+    [b, a] = iirnotch(wo, bw);  % Design notch filter
 
-    % --- 4th-order LPF at 50–55 Hz
-    [blp,alp] = butter(4, LPF_CUTOFF/(fs/2), 'low');
-    [sos_lpf, g_lpf] = tf2sos(blp, alp);
-
-    % Apply cascade: notch -> LPF (forward-only, low latency)
-    sz_values = sosfilt(sos_notch,  g_notch * sz_values);
-    sz_values = sosfilt(sos_lpf,    g_lpf   * sz_values);
-    
+    % Apply notch to baseline
+    sz_values = filtfilt(b, a, sz_values);
 
     window_size = round(fs * window_duration);
     n_windows   = floor(size(sz_values,1) / window_size);
@@ -116,7 +100,7 @@ for f = 1:numel(all_filenames)
         det_times = run_detector_on_interval(filename, start_time, end_time, ...
                        threshold, window_duration, avg_window_sec, ...
                        chunk_duration, cooldown_sec, szPair, login_name, pwfile,...
-                       sos_notch,g_notch,sos_lpf,g_lpf);
+                       b,a);
         detection_times_all = [detection_times_all; det_times]; %#ok<AGROW>
     end
 
@@ -130,7 +114,7 @@ end
 function detection_times = run_detector_on_interval(filename, start_time, end_time, ...
                          threshold, window_duration, avg_window_sec, ...
                          chunk_duration, cooldown_sec, sz_ch, login_name, pwfile, ...
-                         sos_notch,g_notch,sos_lpf,g_lpf)
+                         b,a)
 
     detection_times = [];
     current_time = start_time;
@@ -158,9 +142,7 @@ function detection_times = run_detector_on_interval(filename, start_time, end_ti
         % Handle NaNs and apply notch
         sz_values(isnan(sz_values)) = nanmean(sz_values);
         if ~any(isnan(sz_values))
-            % Apply cascade: notch -> LPF (forward-only, low latency)
-            sz_values = sosfilt(sos_notch,  g_notch * sz_values);
-            sz_values = sosfilt(sos_lpf,    g_lpf   * sz_values);
+            sz_values = filtfilt(b, a, sz_values);
         end
 
         window_size         = round(fs * window_duration);         % samples in 1s

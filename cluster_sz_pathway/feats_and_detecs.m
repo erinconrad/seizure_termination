@@ -9,7 +9,7 @@ addpath(genpath(locations.script_folder));
 addpath(genpath(locations.ieeg_folder));
 data_folder    = [locations.main_folder, 'data/'];
 results_folder = [locations.main_folder, 'results/'];
-out_folder     = [results_folder, 'cluster_august112025/'];
+out_folder     = [results_folder, 'cluster/'];
 
 pwfile     = locations.ieeg_pw_file;
 login_name = locations.ieeg_login;
