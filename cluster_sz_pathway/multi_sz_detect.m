@@ -14,10 +14,10 @@ T.bipolar_ch2 = string(T.bipolar_ch2);
 all_filenames = unique(T.filename);
 
 window_duration = 1;       % -> 
-avg_window_sec  = 4;         % moving-average window -
+avg_window_sec  = 5;         % moving-average window -
 chunk_duration  = 5*60;      % 5 min chunks
 cooldown_sec    = 180;       % cooldown period in seconds
-rel_threshold   = 10;         % # SDs above mean to call sz -> Erin changed from 13 to 10 8/9
+rel_threshold   = 8;         % # SDs above mean to call sz -> Erin changed from 13 to 10 8/9
 f0 = 60; NOTCH_Q = 35; harmonics = [1 2];  % 60 & 120
 LPF_CUTOFF = 50;  % try 50 first
 
@@ -186,13 +186,12 @@ function detection_times = run_detector_on_interval(filename, start_time, end_ti
             % Detection rule: all 1s windows in the last 4s must exceed threshold
             if numel(line_hist) == n_needed
                 if all(line_hist > threshold)
-                    % Timestamp at the start of the 4-window block
-                    first_block_start_idx = start_idx - (n_needed-1)*window_size;
-                    detection_time = current_time + (first_block_start_idx / fs);
+                    % Timestamp at the end of the 4-window block
+                    detection_time = current_time + (start_idx + window_size)/ fs;
 
                     if (detection_time - last_detection_time) >= cooldown_sec
                         detection_times(end+1,1) = detection_time; %#ok<AGROW>
-                        fprintf('    Detected at %.2f s (start of 4-window block)\n', detection_time);
+                        fprintf('    Detected at %.2f s (end of 4-window block)\n', detection_time);
                         last_detection_time = detection_time;
 
                         % Jump ahead by cooldown to avoid re-detecting the same event
